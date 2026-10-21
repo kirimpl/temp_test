@@ -4,17 +4,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#111315">
-<meta name="description" content="COREBOUND — браузерная тактическая Tower Defense. Строй башни, защищай ядро и выбирай улучшения.">
-<title>COREBOUND · Tower Defense</title>
+<meta name="description" content="VAYRHEX — браузерная тактическая Tower Defense. Строй башни, защищай ядро и выбирай улучшения.">
+<title>VAYRHEX · Tower Defense</title>
 <link rel="stylesheet" href="ui-v03.css">
 </head>
 <body>
 <main class="app">
 <header class="topbar">
-  <div class="identity"><span class="emblem emblem--small" aria-hidden="true"><span class="emblem-outer"><span class="emblem-inner"><span class="emblem-core"></span></span></span></span><span class="wordmark">core<span>bound</span></span><span class="build-id">BETA / 03</span></div>
+  <div class="identity"><span class="emblem emblem--small" aria-hidden="true"><span class="emblem-outer"><span class="emblem-inner"><span class="emblem-core"></span></span></span></span><span class="wordmark">vayr<span>hex</span></span><span class="build-id">BETA / 03</span></div>
   <div class="header-tools"><span class="session-indicator"><span></span> Локальная игра</span><button class="header-button" id="muteBtn" title="Включить звук" aria-label="Включить звук">♪̸</button></div>
 </header>
-<section class="gamebox" aria-label="COREBOUND">
+<section class="gamebox" aria-label="VAYRHEX">
   <div class="hud" aria-label="Информация об игре">
     <div class="hud-cell hud-health"><span class="hud-label">Ядро</span><strong id="hpText">100 / 100</strong><span class="health-track"><span id="hpBar" style="width:100%"></span></span></div>
     <div class="hud-cell hud-wave"><span class="hud-label">Волна</span><strong id="waveText">0 / ∞</strong></div>
@@ -36,9 +36,9 @@
     </aside>
   </div>
 </section>
-<footer class="helpbar"><span><span class="help-key">1</span> Выбери башню <span class="help-arrow">→</span> <span class="help-key">2</span> Поставь на узел <span class="help-arrow">→</span> <span class="help-key">3</span> Запусти волну</span><span class="help-version">COREBOUND 0.3</span></footer>
+<footer class="helpbar"><span><span class="help-key">1</span> Выбери башню <span class="help-arrow">→</span> <span class="help-key">2</span> Поставь на узел <span class="help-arrow">→</span> <span class="help-key">3</span> Запусти волну</span><span class="help-version">VAYRHEX 0.3</span></footer>
 </main>
-<div class="modal" id="startModal" role="dialog" aria-modal="true" aria-labelledby="startTitle"><div class="modal-backdrop"></div><div class="menu-pane"><span class="emblem emblem--hero" aria-hidden="true"><span class="emblem-outer"><span class="emblem-inner"><span class="emblem-core"></span></span></span></span><div class="menu-brand" id="startTitle">core<span>bound</span></div><p class="menu-description">Держи оборону. Перестраивай стратегию.<br/>Сколько волн выдержит твоё ядро?</p><button id="playBtn" class="primary begin-button">Начать игру <span aria-hidden="true">→</span></button><div class="meta-bar"><span class="meta-icon">◆</span><div class="meta-count"><small>Осколки</small><strong id="shardCount">0 осколков</strong></div><button id="metaBuy" class="meta-buy">Усилить ядро · 20</button></div><div class="menu-footnote">Прогресс сохраняется на этом устройстве</div></div></div>
+<div class="modal" id="startModal" role="dialog" aria-modal="true" aria-labelledby="startTitle"><div class="modal-backdrop"></div><div class="menu-pane"><span class="emblem emblem--hero" aria-hidden="true"><span class="emblem-outer"><span class="emblem-inner"><span class="emblem-core"></span></span></span></span><div class="menu-brand" id="startTitle">vayr<span>hex</span></div><p class="menu-description">Держи оборону. Перестраивай стратегию.<br/>Сколько волн выдержит твоё ядро?</p><button id="playBtn" class="primary begin-button">Начать игру <span aria-hidden="true">→</span></button><div class="meta-bar"><span class="meta-icon">◆</span><div class="meta-count"><small>Осколки</small><strong id="shardCount">0 осколков</strong></div><button id="metaBuy" class="meta-buy">Усилить ядро · 20</button></div><div class="menu-footnote">Прогресс сохраняется на этом устройстве</div></div></div>
 <div class="modal hidden" id="upgradeModal" role="dialog" aria-modal="true" aria-labelledby="upgradeTitle"><div class="modal-backdrop"></div><div class="dialog-pane upgrade-pane"><div class="dialog-top"><span>После волны</span><span class="dialog-index">+1 улучшение</span></div><h2 id="upgradeTitle">Выбери модуль</h2><p>Усиление действует до конца забега.</p><div id="upgradeCards" class="upgrade-cards"></div><div class="wave-next">Игра продолжится после выбора</div></div></div>
 <div class="modal hidden" id="deadModal" role="dialog" aria-modal="true" aria-labelledby="deadTitle"><div class="modal-backdrop"></div><div class="dialog-pane result-pane"><div class="dialog-top"><span>Итоги забега</span><span class="dialog-index">Завершено</span></div><h2 id="deadTitle">Ядро уничтожено</h2><p id="endDescription">Оборона не выдержала.</p><div class="result-grid"><div><small>Волн</small><b id="resultWaves">0</b></div><div><small>Врагов</small><b id="resultKills">0</b></div><div><small>Осколки</small><b id="resultShards">+0</b></div></div><button id="restartBtn" class="primary begin-button">Попробовать снова <span aria-hidden="true">→</span></button></div></div>
 <script src="game.js"></script>
