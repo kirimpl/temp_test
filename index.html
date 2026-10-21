@@ -1,69 +1,45 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-  <meta name="theme-color" content="#080e10">
-  <meta name="description" content="COREBOUND — браузерная тактическая оборона ядра.">
-  <title>COREBOUND · TACTICAL BUILD 02</title>
-  <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="ui-v02.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111315">
+<meta name="description" content="COREBOUND — браузерная тактическая Tower Defense. Строй башни, защищай ядро и выбирай улучшения.">
+<title>COREBOUND · Tower Defense</title>
+<link rel="stylesheet" href="ui-v03.css">
 </head>
 <body>
-  <main class="shell">
-    <header class="masthead">
-      <div class="brand"><span class="brandmark" aria-hidden="true"><span></span></span><div><b>CORE<span>BOUND</span></b><small>TACTICAL DEFENSE <em>//</em> OPERATIONS SYSTEM</small></div></div>
-      <div class="mast-right"><span class="online-dot"></span><span class="op-status">SYSTEM ONLINE</span><span class="version">BUILD 02</span></div>
-    </header>
-    <div class="section-kicker"><span>01 / COMMAND CENTER</span><span>SECTOR 07 &nbsp; · &nbsp; VEIL FRONTIER</span></div>
-    <section class="gamebox">
-      <div class="gamebar">
-        <div class="bar-id"><span class="status-tick"></span> LIVE TELEMETRY</div>
-        <div class="stat"><i>ЯДРО</i><strong id="hpText">100 / 100</strong><div class="mini-meter"><span id="hpBar" style="width:100%"></span></div></div>
-        <div class="stat"><i>ВОЛНА</i><strong id="waveText">0 / ∞</strong></div>
-        <div class="stat"><i>КРЕДИТЫ</i><strong class="gold" id="moneyText">135 ◈</strong></div>
-        <div class="stat killstat"><i>УСТРАНЕНО</i><strong id="killsText">0</strong></div>
-        <button id="muteBtn" class="iconbtn" aria-label="Переключить звук" title="Звук">♪</button>
-      </div>
-      <div class="arena-layout">
-        <div class="field">
-          <canvas id="game" width="960" height="540" aria-label="Игровое поле Corebound. Нажимайте на светящиеся узлы, чтобы строить башни."></canvas>
-          <div class="corner-label left-corner">SECTOR 07 // VEIL FRONTIER</div>
-          <div class="corner-label right-corner" id="gameStatus">ОЖИДАНИЕ КОМАНДЫ</div>
-          <div class="toast" id="toast" role="status" aria-live="polite"></div>
-          <button id="fullscreenBtn" class="fullscreen-btn" aria-label="На весь экран" title="Развернуть поле">⤢ <span>FULLSCREEN</span></button>
-          <div class="modal" id="startModal">
-            <div class="modal-backdrop"></div>
-            <div class="intro-pane">
-              <div class="intro-topline"><span>MISSION / 001</span><span>TRANSMISSION READY <i class="blink-marker"></i></span></div>
-              <div class="eyebrow">ПРИКАЗ: УДЕРЖАТЬ ПОСЛЕДНИЙ ИСТОЧНИК ЭНЕРГИИ</div>
-              <h1>ПОСЛЕДНИЙ <span>РУБЕЖ<span class="stop">.</span></span></h1>
-              <p>Враг приближается к ядру. Разверни оборону, сочетай технологии и не дай линии защиты рухнуть.</p>
-              <div class="intro-features"><span><em>01</em> Строй башни</span><span><em>02</em> Выбирай модули</span><span><em>03</em> Выживай</span></div>
-              <div class="intro-bottom"><div class="meta"><div><small>ЗАПАС ОСКОЛКОВ</small><b id="shardCount">0 осколков</b></div><button id="metaBuy" class="secondary small">Усилить ядро · 20</button></div>
-              <button id="playBtn" class="primary large"><span class="play-serial">▶ &nbsp;01</span><span>ПРИНЯТЬ КОМАНДОВАНИЕ</span><span class="play-arrow">↗</span></button></div>
-              <small class="footnote">Улучшения ядра сохраняются на этом устройстве. Сможешь продержаться до конца?</small>
-            </div>
-          </div>
-          <div class="modal hidden" id="upgradeModal">
-            <div class="modal-backdrop"></div>
-            <div class="upgrade-pane"><span class="eyebrow">RESEARCH // UPGRADE AVAILABLE</span><h2>Выбор усиления<span class="accent-period">.</span></h2><p>Один модуль на этот этап. Подумай, чего сейчас не хватает твоей обороне.</p><div id="upgradeCards" class="upgrade-cards"></div><div class="wave-next">↓ СЛЕДУЮЩАЯ ВОЛНА ПОСЛЕ ВЫБОРА</div></div>
-          </div>
-          <div class="modal hidden" id="deadModal">
-            <div class="modal-backdrop"></div>
-            <div class="intro-pane end-pane"><div class="eyebrow">CONNECTION LOST // SECTOR 07</div><div class="big-symbol broken">✕</div><h2>РУБЕЖ ПОТЕРЯН<span class="accent-period">.</span></h2><p id="endDescription">Ядро уничтожено.</p><div class="result-grid"><div><small>ВОЛН ПРОЙДЕНО</small><b id="resultWaves">0</b></div><div><small>УСТРАНЕНО</small><b id="resultKills">0</b></div><div><small>ОСКОЛКИ</small><b id="resultShards">+0</b></div></div><button id="restartBtn" class="primary large">НОВЫЙ ЗАБЕГ ↗</button></div>
-          </div>
-        </div>
-        <aside class="actionbar" aria-label="Командная панель">
-          <div class="command-heading"><span>COMMAND DECK</span><span>02 / 02</span></div>
-          <div class="selection"><span class="selection-indicator">⌖</span><div><b id="selectionTitle">Выберите площадку</b><small id="selectionHint">Стройте башни до и во время волн</small></div></div>
-          <div id="buildControls" class="build-controls"></div>
-          <div class="dock-bottom"><span class="dock-hint">Оборонительный протокол <b id="dockState">ГОТОВ</b></span><div class="wave-actions"><button id="speedBtn" class="secondary speed" title="Скорость">▶ 1×</button><button id="nextWaveBtn" class="primary">ЗАПУСТИТЬ ВОЛНУ <span>↗</span></button></div></div>
-        </aside>
-      </div>
-    </section>
-    <footer class="footer"><span><b>КАК ИГРАТЬ</b> Выбери узел на поле <span class="sep">→</span> построй башню <span class="sep">→</span> запускай волну</span><span class="tips">COREBOUND © PROTOTYPE // BEST PLAYED LANDSCAPE</span></footer>
-  </main>
-  <script src="game.js"></script>
-</body>
-</html>
+<main class="app">
+<header class="topbar">
+  <div class="identity"><span class="emblem emblem--small" aria-hidden="true"><span class="emblem-outer"><span class="emblem-inner"><span class="emblem-core"></span></span></span></span><span class="wordmark">core<span>bound</span></span><span class="build-id">BETA / 03</span></div>
+  <div class="header-tools"><span class="session-indicator"><span></span> Локальная игра</span><button class="header-button" id="muteBtn" title="Включить звук" aria-label="Включить звук">♪̸</button></div>
+</header>
+<section class="gamebox" aria-label="COREBOUND">
+  <div class="hud" aria-label="Информация об игре">
+    <div class="hud-cell hud-health"><span class="hud-label">Ядро</span><strong id="hpText">100 / 100</strong><span class="health-track"><span id="hpBar" style="width:100%"></span></span></div>
+    <div class="hud-cell hud-wave"><span class="hud-label">Волна</span><strong id="waveText">0 / ∞</strong></div>
+    <div class="hud-cell hud-money"><span class="hud-label">Кредиты</span><strong><span class="money-symbol">◆</span> <span id="moneyText">135</span></strong></div>
+    <div class="hud-cell hud-kills"><span class="hud-label">Устранено</span><strong id="killsText">0</strong></div>
+  </div>
+  <div class="play-layout">
+    <div class="field">
+      <canvas id="game" width="960" height="540" aria-label="Игровое поле. Коснитесь узла, чтобы разместить башню."></canvas>
+      <div class="field-topline"><span class="map-name">01 <b>·</b> Рубеж</span><span class="game-status"><span class="status-led"></span><span id="gameStatus">Подготовка</span></span></div>
+      <button id="fullscreenBtn" class="fullscreen-btn" aria-label="Полноэкранный режим" title="Полноэкранный режим"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg></button>
+      <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    </div>
+    <aside class="sidepanel" aria-label="Строительство и управление">
+      <div class="side-top"><strong>Оборона</strong><span class="side-counter">3 башни</span></div>
+      <div class="selection" aria-live="polite"><span class="selection-indicator" aria-hidden="true">⌖</span><div class="selection-copy"><b id="selectionTitle">Выбери башню</b><small id="selectionHint">Затем коснись свободного узла на поле</small></div></div>
+      <div id="buildControls" class="build-controls" aria-label="Доступные башни"></div>
+      <div class="panel-bottom"><div class="phase-line"><span>Состояние</span><strong id="dockState">Ожидание</strong></div><div class="wave-actions"><button id="speedBtn" class="secondary speed" title="Скорость игры">▶ 1×</button><button id="nextWaveBtn" class="primary wave-button">Запустить волну <span aria-hidden="true">→</span></button></div></div>
+    </aside>
+  </div>
+</section>
+<footer class="helpbar"><span><span class="help-key">1</span> Выбери башню <span class="help-arrow">→</span> <span class="help-key">2</span> Поставь на узел <span class="help-arrow">→</span> <span class="help-key">3</span> Запусти волну</span><span class="help-version">COREBOUND 0.3</span></footer>
+</main>
+<div class="modal" id="startModal" role="dialog" aria-modal="true" aria-labelledby="startTitle"><div class="modal-backdrop"></div><div class="menu-pane"><span class="emblem emblem--hero" aria-hidden="true"><span class="emblem-outer"><span class="emblem-inner"><span class="emblem-core"></span></span></span></span><div class="menu-brand" id="startTitle">core<span>bound</span></div><p class="menu-description">Держи оборону. Перестраивай стратегию.<br/>Сколько волн выдержит твоё ядро?</p><button id="playBtn" class="primary begin-button">Начать игру <span aria-hidden="true">→</span></button><div class="meta-bar"><span class="meta-icon">◆</span><div class="meta-count"><small>Осколки</small><strong id="shardCount">0 осколков</strong></div><button id="metaBuy" class="meta-buy">Усилить ядро · 20</button></div><div class="menu-footnote">Прогресс сохраняется на этом устройстве</div></div></div>
+<div class="modal hidden" id="upgradeModal" role="dialog" aria-modal="true" aria-labelledby="upgradeTitle"><div class="modal-backdrop"></div><div class="dialog-pane upgrade-pane"><div class="dialog-top"><span>После волны</span><span class="dialog-index">+1 улучшение</span></div><h2 id="upgradeTitle">Выбери модуль</h2><p>Усиление действует до конца забега.</p><div id="upgradeCards" class="upgrade-cards"></div><div class="wave-next">Игра продолжится после выбора</div></div></div>
+<div class="modal hidden" id="deadModal" role="dialog" aria-modal="true" aria-labelledby="deadTitle"><div class="modal-backdrop"></div><div class="dialog-pane result-pane"><div class="dialog-top"><span>Итоги забега</span><span class="dialog-index">Завершено</span></div><h2 id="deadTitle">Ядро уничтожено</h2><p id="endDescription">Оборона не выдержала.</p><div class="result-grid"><div><small>Волн</small><b id="resultWaves">0</b></div><div><small>Врагов</small><b id="resultKills">0</b></div><div><small>Осколки</small><b id="resultShards">+0</b></div></div><button id="restartBtn" class="primary begin-button">Попробовать снова <span aria-hidden="true">→</span></button></div></div>
+<script src="game.js"></script>
+</body></html>
