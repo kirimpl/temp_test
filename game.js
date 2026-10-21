@@ -52,7 +52,8 @@ function updateUI(){
  $('waveText').textContent=`${state.wave} / ∞`;$('moneyText').textContent=`${Math.floor(state.money)} ◈`;$('killsText').textContent=state.kills;
  $('gameStatus').textContent={menu:'ПРОТОКОЛ НЕ АКТИВЕН',plan:'ПОДГОТОВКА ОБОРОНЫ',combat:'ОБОРОНА АКТИВНА',upgrade:'ВЫБОР МОДУЛЯ',dead:'СИГНАЛ ПОТЕРЯН'}[state.phase];
  $('speedBtn').textContent=`▶ ${state.speed}×`;
- const btn=$('nextWaveBtn');btn.disabled=state.phase!=='plan';btn.innerHTML=state.phase==='combat'?'ВОЛНА ИДЁТ…':`НАЧАТЬ ВОЛНУ <span>↗</span>`;
+ $('dockState').textContent={menu:'ОЖИДАНИЕ',plan:'ГОТОВ',combat:'В БОЮ',upgrade:'МОДУЛЬ',dead:'ПОТЕРЯНО'}[state.phase];
+ const btn=$('nextWaveBtn');btn.disabled=state.phase!=='plan';btn.innerHTML=state.phase==='combat'?'ИДЁТ ВОЛНА…':`ЗАПУСТИТЬ ВОЛНУ <span>↗</span>`;
 }
 function showModal(id,visible){$(id).classList.toggle('hidden',!visible)}
 function start(){state=newState();state.phase='plan';selectedPad=-1;['startModal','upgradeModal','deadModal'].forEach(id=>showModal(id,false));updateControls();updateUI();toast('Построй башни и запусти первую волну');}
@@ -138,6 +139,8 @@ canvas.addEventListener('pointerdown',ev=>{if(state.phase!=='plan'&&state.phase!
 $('playBtn').addEventListener('click',start);$('restartBtn').addEventListener('click',start);$('nextWaveBtn').addEventListener('click',startWave);
 $('speedBtn').addEventListener('click',()=>{state.speed=state.speed===1?2:1;updateUI();});
 $('muteBtn').addEventListener('click',()=>{muted=!muted;$('muteBtn').textContent=muted?'♪̸':'♪';if(!muted)sound(660,.1);});
+$('fullscreenBtn').addEventListener('click',async()=>{try{if(document.fullscreenElement){await document.exitFullscreen();}else{await document.querySelector('.gamebox').requestFullscreen();}}catch{toast('Полноэкранный режим недоступен — поверни телефон горизонтально');}});
+document.addEventListener('fullscreenchange',()=>{$('fullscreenBtn').innerHTML=document.fullscreenElement?'⊟ <span>EXIT</span>':'⤢ <span>FULLSCREEN</span>';});
 $('metaBuy').addEventListener('click',()=>{const cost=metaCost();if(meta.shards<cost)return;meta.shards-=cost;meta.coreLevel++;persist();state.maxHp=100+meta.coreLevel*12;state.hp=state.maxHp;updateMeta();updateUI();toast('Усиление ядра приобретено!');sound(740,.12);});
 window.addEventListener('keydown',ev=>{if(['Enter',' '].includes(ev.key)&&state.phase==='plan'&&ev.target.tagName!=='BUTTON'){ev.preventDefault();startWave();}if(ev.key==='Escape'){selectedPad=-1;updateControls();}});
 init();requestAnimationFrame(tick);
