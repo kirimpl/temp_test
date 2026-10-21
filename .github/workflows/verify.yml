@@ -16,11 +16,18 @@ jobs:
         with:
           node-version: '22'
       - name: Check JavaScript syntax
-        run: |\n          node --check game.js\n          node --check atlas-v08.js
+        run: |
+          node --check game.js
+          node --check atlas-v08.js
       - name: Check static site files
         run: |
           test -s index.html
           test -s ui-v03.css
+          test -s atlas-v08.css
           test -s game.js
+          test -s atlas-v08.js
           grep -q 'href="ui-v03.css"' index.html
-          grep -q 'src="game.js"' index.html\n          grep -q 'src="atlas-v08.js"' index.html\n          grep -q 'href="atlas-v08.css"' index.html\n          grep -q 'id="atlasViewport"' index.html
+          grep -q 'src="game.js"' index.html
+          grep -q 'src="atlas-v08.js"' index.html
+          grep -q 'href="atlas-v08.css"' index.html
+          grep -q 'id="atlasViewport"' index.html
