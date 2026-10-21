@@ -1,69 +1,112 @@
 <!doctype html>
 <html lang="ru">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#111315">
-<meta name="description" content="VAYRHEX — браузерная тактическая Tower Defense. Строй башни, защищай ядро и выбирай улучшения.">
-<title>VAYRHEX · Tower Defense</title>
-<link rel="stylesheet" href="ui-v03.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#111315">
+  <meta name="description" content="VAYRHEX — браузерная тактическая Tower Defense. Строй башни, защищай ядро и выбирай улучшения.">
+  <title>VAYRHEX · Tower Defense</title>
+  <link rel="stylesheet" href="ui-v03.css">
 </head>
 <body>
 <main class="app">
-<header class="topbar">
-  <div class="identity"><span class="emblem emblem--small" aria-hidden="true"><span class="emblem-outer"><span class="emblem-inner"><span class="emblem-core"></span></span></span></span><span class="wordmark">vayr<span>hex</span></span><span class="build-id">BETA / 04</span></div>
-  <div class="header-tools"><span class="session-indicator"><span></span> Локальная игра</span><button class="header-button" id="muteBtn" title="Выключить звук" aria-label="Выключить звук">♪</button></div>
-</header>
-<section class="gamebox" aria-label="VAYRHEX">
-  <div class="hud" aria-label="Информация об игре">
-    <div class="hud-cell hud-health"><span class="hud-label">Ядро</span><strong id="hpText">100 / 100</strong><span class="health-track"><span id="hpBar" style="width:100%"></span></span></div>
-    <div class="hud-cell hud-wave"><span class="hud-label">Волна</span><strong id="waveText">0 / ∞</strong></div>
-    <div class="hud-cell hud-money"><span class="hud-label">Кредиты</span><strong><span class="money-symbol">◆</span> <span id="moneyText">135</span></strong></div>
-    <div class="hud-cell hud-kills"><span class="hud-label">Устранено</span><strong id="killsText">0</strong></div>
-  </div>
-  <div class="play-layout">
-    <div class="field">
-      <canvas id="game" width="960" height="540" aria-label="Игровое поле. Коснитесь узла, чтобы разместить башню."></canvas>
-      <div class="field-topline"><span class="map-name">01 <b>·</b> Рубеж</span><span class="game-status"><span class="status-led"></span><span id="gameStatus">Подготовка</span></span></div>
-      <button id="fullscreenBtn" class="fullscreen-btn" aria-label="Полноэкранный режим" title="Полноэкранный режим"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg></button>
-      <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <header class="topbar">
+    <div class="identity">
+      <span class="emblem emblem--small" aria-hidden="true"><span class="emblem-outer"><span class="emblem-inner"><span class="emblem-core"></span></span></span></span>
+      <span class="wordmark">vayr<span>hex</span></span>
+      <span class="build-id">BETA / 05</span>
     </div>
-    <aside class="sidepanel" aria-label="Строительство и управление">
-      <div class="side-top"><strong>Оборона</strong><span class="side-counter">3 башни</span></div>
-      <div class="selection" aria-live="polite"><span class="selection-indicator" aria-hidden="true">⌖</span><div class="selection-copy"><b id="selectionTitle">Выбери башню</b><small id="selectionHint">Затем коснись свободного узла на поле</small></div></div>
-      <div id="buildControls" class="build-controls" aria-label="Доступные башни"></div>
-      <div class="panel-bottom"><div class="phase-line"><span>Состояние</span><strong id="dockState">Ожидание</strong></div><div class="wave-actions"><button id="speedBtn" class="secondary speed" title="Скорость игры">▶ 1×</button><button id="nextWaveBtn" class="primary wave-button">Запустить волну <span aria-hidden="true">→</span></button></div></div>
-    </aside>
-  </div>
-</section>
-<footer class="helpbar"><span><span class="help-key">1</span> Выбери башню <span class="help-arrow">→</span> <span class="help-key">2</span> Поставь на узел <span class="help-arrow">→</span> <span class="help-key">3</span> Запусти волну</span><span class="help-version">VAYRHEX 0.4</span></footer>
-</main>
-<div class="modal" id="startModal" role="dialog" aria-modal="true" aria-labelledby="startTitle"><div class="modal-backdrop"></div><div class="menu-pane"><span class="emblem emblem--hero" aria-hidden="true"><span class="emblem-outer"><span class="emblem-inner"><span class="emblem-core"></span></span></span></span><div class="menu-brand" id="startTitle">vayr<span>hex</span></div><p class="menu-description">Держи оборону. Перестраивай стратегию.<br/>Сколько волн выдержит твоё ядро?</p><div class="menu-actions">
-<button id="playBtn" class="primary begin-button">Начать игру <span aria-hidden="true">→</span></button>
-<div class="menu-nav"><button id="researchBtn" class="menu-nav-button"><span class="menu-nav-glyph">⬡</span><span>Исследования</span><span>→</span></button><button id="settingsBtn" class="menu-nav-button"><span class="menu-nav-glyph">☷</span><span>Настройки</span><span>→</span></button></div></div>
-<div class="meta-bar"><span class="meta-icon">◆</span><div class="meta-count"><small>Осколки для исследований</small><strong id="shardCount">0 осколков</strong></div><span class="meta-helper">Сохраняются после поражения</span></div>
-<div class="menu-footnote">Прогресс и настройки сохраняются на этом устройстве</div></div></div>
-<div class="modal hidden" id="upgradeModal" role="dialog" aria-modal="true" aria-labelledby="upgradeTitle"><div class="modal-backdrop"></div><div class="dialog-pane upgrade-pane"><div class="dialog-top"><span>После волны</span><span class="dialog-index">+1 улучшение</span></div><h2 id="upgradeTitle">Выбери модуль</h2><p>Усиление действует до конца забега.</p><div id="upgradeCards" class="upgrade-cards"></div><div class="wave-next">Игра продолжится после выбора</div></div></div>
-<div class="modal hidden" id="deadModal" role="dialog" aria-modal="true" aria-labelledby="deadTitle"><div class="modal-backdrop"></div><div class="dialog-pane result-pane"><div class="dialog-top"><span>Итоги забега</span><span class="dialog-index">Завершено</span></div><h2 id="deadTitle">Ядро уничтожено</h2><p id="endDescription">Оборона не выдержала.</p><div class="result-grid"><div><small>Волн</small><b id="resultWaves">0</b></div><div><small>Врагов</small><b id="resultKills">0</b></div><div><small>Осколки</small><b id="resultShards">+0</b></div></div><button id="restartBtn" class="primary begin-button">Попробовать снова <span aria-hidden="true">→</span></button></div></div>
+    <div class="header-tools"><span class="session-indicator"><span></span> Локальная игра</span><button class="header-button" id="muteBtn" title="Включить звук" aria-label="Включить звук">♪̸</button></div>
+  </header>
 
-<div class="modal hidden" id="settingsModal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle"><div class="modal-backdrop"></div>
-<section class="dialog-pane prefs-pane">
-<div class="panel-header"><div><span class="panel-kicker">ПАРАМЕТРЫ ИГРЫ</span><h2 id="settingsTitle">Настройки</h2></div><button id="settingsClose" class="close-panel" aria-label="Вернуться в меню">✕</button></div>
-<div class="prefs-section"><h3>Звук</h3>
-<label class="pref-row" for="musicVolume"><span class="pref-copy"><strong>Музыка</strong><small>Фоновая процедурная мелодия</small></span><span class="pref-value" id="musicVolumeText">25%</span><input id="musicVolume" type="range" min="0" max="100" step="5" value="25"></label>
-<label class="pref-row" for="shotsVolume"><span class="pref-copy"><strong>Звуки выстрелов</strong><small>Выстрелы и остальные эффекты</small></span><span class="pref-value" id="shotsVolumeText">45%</span><input id="shotsVolume" type="range" min="0" max="100" step="5" value="45"></label></div>
-<div class="prefs-section"><h3>Отображение боя</h3>
-<label class="pref-row" for="shotLimit"><span class="pref-copy"><strong>Снарядов на экране</strong><small>Скрытые снаряды всё равно наносят урон</small></span><span class="pref-value" id="shotLimitText">30</span><input id="shotLimit" type="range" min="0" max="120" step="10" value="30"></label>
-<label class="pref-row" for="shotOpacity"><span class="pref-copy"><strong>Прозрачность выстрелов</strong><small>0% — невидимые, 100% — яркие</small></span><span class="pref-value" id="shotOpacityText">70%</span><input id="shotOpacity" type="range" min="0" max="100" step="5" value="70"></label></div>
-<div class="panel-footer"><small>Настройки применяются сразу и сохраняются автоматически.</small><button id="settingsDone" class="primary panel-action">Готово</button></div>
-</section></div>
-<div class="modal hidden" id="researchModal" role="dialog" aria-modal="true" aria-labelledby="researchTitle"><div class="modal-backdrop"></div>
-<section class="dialog-pane research-pane">
-<div class="panel-header"><div><span class="panel-kicker">ПОСТОЯННЫЕ УЛУЧШЕНИЯ</span><h2 id="researchTitle">Исследования</h2></div><button id="researchClose" class="close-panel" aria-label="Вернуться в меню">✕</button></div>
-<div class="research-currency"><span>◆ Осколки</span><strong id="researchShards">0</strong></div>
-<p class="research-intro">Выбирай направление развития. Каждый следующий узел открывается после изучения предыдущего. Бонусы действуют во всех новых забегах.</p>
-<div id="researchTree" class="research-tree"></div>
-<div class="panel-footer"><small id="researchTotal">0 уровней изучено</small><button id="researchDone" class="primary panel-action">Назад</button></div>
-</section></div>
+  <section class="gamebox" aria-label="VAYRHEX">
+    <div class="hud" aria-label="Информация об игре">
+      <div class="hud-cell hud-health"><span class="hud-label">Ядро</span><strong id="hpText">100 / 100</strong><span class="health-track"><span id="hpBar" style="width:100%"></span></span></div>
+      <div class="hud-cell hud-wave"><span class="hud-label">Волна</span><strong id="waveText">0 / ∞</strong></div>
+      <div class="hud-cell hud-money"><span class="hud-label">Кредиты</span><strong><span class="money-symbol">◆</span> <span id="moneyText">135 ◈</span></strong></div>
+      <div class="hud-cell hud-kills"><span class="hud-label">Устранено</span><strong id="killsText">0</strong></div>
+    </div>
+
+    <div class="play-layout">
+      <div class="field">
+        <canvas id="game" width="960" height="540" aria-label="Игровое поле. Коснитесь узла, чтобы разместить башню."></canvas>
+        <div class="field-topline"><span class="map-name">01 <b>·</b> Рубеж</span><span class="game-status"><span class="status-led"></span><span id="gameStatus">Подготовка</span></span></div>
+        <button id="fullscreenBtn" class="fullscreen-btn" aria-label="Полноэкранный режим" title="Полноэкранный режим"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg></button>
+        <div class="toast" id="toast" role="status" aria-live="polite"></div>
+      </div>
+      <aside class="sidepanel" aria-label="Строительство и управление">
+        <div class="side-top"><strong>Оборона</strong><span class="side-counter" id="towerCount">3 / 5 открыто</span></div>
+        <div class="selection" aria-live="polite">
+          <span class="selection-indicator" aria-hidden="true">⌖</span>
+          <div class="selection-copy"><b id="selectionTitle">Выбери башню</b><small id="selectionHint">Затем коснись свободного узла на поле</small></div>
+        </div>
+        <div id="buildControls" class="build-controls" aria-label="Доступные башни"></div>
+        <div class="panel-bottom">
+          <div class="phase-line"><span>Состояние</span><strong id="dockState">Ожидание</strong></div>
+          <div class="wave-actions"><button id="speedBtn" class="secondary speed" title="Скорость игры">▶ 1×</button><button id="nextWaveBtn" class="primary wave-button">Запустить волну <span aria-hidden="true">→</span></button></div>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <footer class="helpbar"><span><span class="help-key">1</span> Выбери башню <span class="help-arrow">→</span> <span class="help-key">2</span> Поставь на узел <span class="help-arrow">→</span> <span class="help-key">3</span> Запусти волну</span><span class="help-version">VAYRHEX 0.5</span></footer>
+</main>
+
+<!-- Эти окна находятся вне игрового поля: в портретной ориентации они не сжимают игровую карту. -->
+<div class="modal" id="startModal" role="dialog" aria-modal="true" aria-labelledby="startTitle">
+  <div class="modal-backdrop"></div>
+  <div class="menu-pane">
+    <span class="emblem emblem--hero" aria-hidden="true"><span class="emblem-outer"><span class="emblem-inner"><span class="emblem-core"></span></span></span></span>
+    <div class="menu-brand" id="startTitle">vayr<span>hex</span></div>
+    <p class="menu-description">Держи оборону. Перестраивай стратегию.<br>Сколько волн выдержит твоё ядро?</p>
+    <div class="menu-actions">
+      <button id="playBtn" class="primary begin-button">Начать игру <span aria-hidden="true">→</span></button>
+      <div class="menu-nav">
+        <button id="researchBtn" class="menu-nav-button"><span class="menu-nav-glyph" aria-hidden="true">⬡</span><span>Исследования</span><span aria-hidden="true">→</span></button>
+        <button id="settingsBtn" class="menu-nav-button"><span class="menu-nav-glyph" aria-hidden="true">☷</span><span>Настройки</span><span aria-hidden="true">→</span></button>
+      </div>
+    </div>
+    <div class="meta-bar"><span class="meta-icon">◆</span><div class="meta-count"><small>Осколки для исследований</small><strong id="shardCount">0 осколков</strong></div><span class="meta-helper">Сохраняются после поражения</span></div>
+    <div class="menu-footnote">Прогресс и настройки сохраняются на этом устройстве</div>
+  </div>
+</div>
+<div class="modal hidden" id="upgradeModal" role="dialog" aria-modal="true" aria-labelledby="upgradeTitle">
+  <div class="modal-backdrop"></div>
+  <div class="dialog-pane upgrade-pane"><div class="dialog-top"><span>После волны</span><span class="dialog-index">+1 улучшение</span></div><h2 id="upgradeTitle">Выбери модуль</h2><p>Усиление действует до конца забега.</p><div id="upgradeCards" class="upgrade-cards"></div><div class="wave-next">Игра продолжится после выбора</div></div>
+</div>
+<div class="modal hidden" id="deadModal" role="dialog" aria-modal="true" aria-labelledby="deadTitle">
+  <div class="modal-backdrop"></div>
+  <div class="dialog-pane result-pane"><div class="dialog-top"><span>Итоги забега</span><span class="dialog-index">Завершено</span></div><h2 id="deadTitle">Ядро уничтожено</h2><p id="endDescription">Оборона не выдержала.</p><div class="result-grid"><div><small>Волн</small><b id="resultWaves">0</b></div><div><small>Врагов</small><b id="resultKills">0</b></div><div><small>Осколки</small><b id="resultShards">+0</b></div></div><button id="restartBtn" class="primary begin-button">Попробовать снова <span aria-hidden="true">→</span></button></div>
+</div>
+
+<div class="modal hidden" id="settingsModal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+  <div class="modal-backdrop"></div>
+  <section class="dialog-pane prefs-pane" aria-label="Настройки игры">
+    <div class="panel-header"><div><span class="panel-kicker">ПАРАМЕТРЫ ИГРЫ</span><h2 id="settingsTitle">Настройки</h2></div><button class="close-panel" id="settingsClose" aria-label="Вернуться в меню">✕</button></div>
+    <div class="prefs-section"><h3>Звук</h3>
+      <label class="pref-row" for="musicVolume"><span class="pref-copy"><strong>Музыка</strong><small>Фоновая процедурная мелодия</small></span><span class="pref-value" id="musicVolumeText">25%</span><input id="musicVolume" type="range" min="0" max="100" step="5" value="25"/></label>
+      <label class="pref-row" for="shotsVolume"><span class="pref-copy"><strong>Звуки выстрелов</strong><small>Выстрелы и остальные эффекты</small></span><span class="pref-value" id="shotsVolumeText">45%</span><input id="shotsVolume" type="range" min="0" max="100" step="5" value="45"/></label>
+    </div>
+    <div class="prefs-section"><h3>Отображение боя</h3>
+      <label class="pref-row" for="shotLimit"><span class="pref-copy"><strong>Снарядов на экране</strong><small>Скрытые снаряды всё равно наносят урон</small></span><span class="pref-value" id="shotLimitText">30</span><input id="shotLimit" type="range" min="0" max="120" step="10" value="30"/></label>
+      <label class="pref-row" for="shotOpacity"><span class="pref-copy"><strong>Прозрачность выстрелов</strong><small>0% — невидимые, 100% — яркие</small></span><span class="pref-value" id="shotOpacityText">70%</span><input id="shotOpacity" type="range" min="0" max="100" step="5" value="70"/></label>
+    </div>
+    <div class="panel-footer"><small>Настройки применяются сразу и сохраняются автоматически.</small><button id="settingsDone" class="primary panel-action">Готово</button></div>
+  </section>
+</div>
+<div class="modal hidden" id="researchModal" role="dialog" aria-modal="true" aria-labelledby="researchTitle">
+  <div class="modal-backdrop"></div>
+  <section class="dialog-pane research-pane" aria-label="Постоянные исследования">
+    <div class="panel-header"><div><span class="panel-kicker">ПОСТОЯННЫЕ УЛУЧШЕНИЯ</span><h2 id="researchTitle">Исследования</h2></div><button class="close-panel" id="researchClose" aria-label="Вернуться в меню">✕</button></div>
+    <div class="research-currency"><span><span aria-hidden="true">◆</span> Осколки</span><strong id="researchShards">0</strong></div>
+    <div class="research-body" id="researchBody">
+      <p class="research-intro">Осколки остаются после забега. Открой новые башни или улучши существующие — бонусы действуют постоянно.</p>
+      <div id="researchTree" class="research-tree" aria-label="Ветви исследований"></div>
+    </div>
+    <nav id="researchNavigation" class="research-navigation" role="tablist" aria-label="Выбор раздела исследований"></nav>
+    <div class="panel-footer"><small id="researchTotal">0 улучшений изучено</small><button id="researchDone" class="primary panel-action">Назад</button></div>
+  </section>
+</div>
 <script src="game.js"></script>
-</body></html>
+</body>
+</html>
