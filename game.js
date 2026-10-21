@@ -36,15 +36,35 @@ function rr(x,y,w,h,r=6){ctx.beginPath();ctx.roundRect(x,y,w,h,r)}
 function rng(a,b){return Math.random()*(b-a)+a}
 const stars=Array.from({length:95},(_,i)=>({x:(i*193+53)%W,y:(i*127+79)%H,r:.4+(i%4)*.3,tw:i/12}));
 const particles=[];
-let state, selectedPad=-1, pendingType=null, last=performance.now(), elapsed=0, toastTimeout=0, audioCtx=null, muted=true;
+let state, selectedPad=-1, pendingType=null, last=performance.now(), elapsed=0, toastTimeout=0, audioCtx=null, muted=false;
+let musicBus=null, musicStarted=false, nextMusicNote=0, musicStep=0;
+const SETTINGS_KEY='vayrhex-settings-v1';
+const DEFAULT_SETTINGS={musicVolume:25,shotsVolume:45,shotLimit:30,shotOpacity:70};
+function safeInt(v,fallback,min,max){const n=Number(v);return Number.isFinite(n)?Math.max(min,Math.min(max,Math.round(n))):fallback;}
+function loadSettings(){try{const v=JSON.parse(localStorage.getItem(SETTINGS_KEY))||{};return Object.fromEntries(Object.entries(DEFAULT_SETTINGS).map(([k,d])=>[k,safeInt(v[k],d,0,k==='shotLimit'?120:100)]));}catch{return {...DEFAULT_SETTINGS};}}
+let settings=loadSettings();
+function saveSettings(){try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(settings))}catch{}}
+const RESEARCH=[
+ {id:'plating',branch:'core',name:'Броня ядра',symbol:'⬡',desc:'+15 HP ядра за уровень',max:3,cost:[20,35,55]},
+ {id:'repair',branch:'core',name:'Саморемонт',symbol:'+',desc:'+4 HP после волны за уровень',max:2,cost:[45,75],requires:'plating'},
+ {id:'reserve',branch:'core',name:'Резервный контур',symbol:'◈',desc:'+25 HP ядра за уровень',max:2,cost:[90,140],requires:'repair'},
+ {id:'damage',branch:'weapons',name:'Мощность',symbol:'✦',desc:'+7% урона башен за уровень',max:3,cost:[20,35,55]},
+ {id:'rate',branch:'weapons',name:'Приводы',symbol:'≫',desc:'+6% скорострельности за уровень',max:2,cost:[45,75],requires:'damage'},
+ {id:'range',branch:'weapons',name:'Сенсоры',symbol:'◎',desc:'+5% дальности за уровень',max:2,cost:[90,140],requires:'rate'},
+ {id:'capital',branch:'economy',name:'Резервы',symbol:'◆',desc:'+15 стартовых кредитов за уровень',max:3,cost:[20,35,55]},
+ {id:'salvage',branch:'economy',name:'Утилизация',symbol:'↗',desc:'+6% кредитов за противника за уровень',max:2,cost:[45,75],requires:'capital'},
+ {id:'extract',branch:'economy',name:'Экстракция',symbol:'◇',desc:'+10% осколков после забега за уровень',max:2,cost:[90,140],requires:'salvage'}
+];
+function researchLevel(id){return safeInt(meta.research?.[id],0,0,3)}
+
 const saved=()=>{try{return JSON.parse(localStorage.getItem('corebound-save-v1'))||{shards:0,coreLevel:0}}catch{return {shards:0,coreLevel:0}}};
 let meta=saved();
 meta.shards=Math.max(0,Number(meta.shards)||0);meta.coreLevel=Math.min(15,Math.max(0,Number(meta.coreLevel)||0));
+meta.research=meta.research&&typeof meta.research==='object'&&!Array.isArray(meta.research)?meta.research:{};
 function persist(){try{localStorage.setItem('corebound-save-v1',JSON.stringify(meta))}catch{}}
-function newState(){return {phase:'menu',wave:0,hp:100+meta.coreLevel*12,maxHp:100+meta.coreLevel*12,money:135+Math.min(meta.coreLevel,5)*8,kills:0,frames:0,waveTime:0,spawnIndex:0,spawnTotal:0,spawnGap:1.0,spawnTimer:0,selectedModule:[],enemies:[],towers:[],bullets:[],fx:[],mods:{damage:1,range:1,rate:1,chain:0,burn:1,bounty:1},speed:1};}
-function init(){state=newState();selectedPad=-1;pendingType=null;updateMeta();updateUI();updateControls();}
-function updateMeta(){$('shardCount').textContent=`${meta.shards} осколков`;$('metaBuy').textContent=`Усилить ядро · ${metaCost()}`;$('metaBuy').disabled=meta.shards<metaCost();}
-function metaCost(){return 20+meta.coreLevel*15}
+function newState(){const hp=100+meta.coreLevel*12+researchLevel('plating')*15+researchLevel('reserve')*25;return {phase:'menu',wave:0,hp,maxHp:hp,money:135+Math.min(meta.coreLevel,5)*8+researchLevel('capital')*15,kills:0,frames:0,waveTime:0,spawnIndex:0,spawnTotal:0,spawnGap:1.0,spawnTimer:0,selectedModule:[],enemies:[],towers:[],bullets:[],fx:[],mods:{damage:1+researchLevel('damage')*.07,range:1+researchLevel('range')*.05,rate:1+researchLevel('rate')*.06,chain:0,burn:1,bounty:1+researchLevel('salvage')*.06},speed:1};}
+function init(){state=newState();selectedPad=-1;pendingType=null;updateMeta();updateUI();updateControls();syncSettingsControls();}
+function updateMeta(){$('shardCount').textContent=`${meta.shards} осколков`;const el=$('researchShards');if(el)el.textContent=meta.shards;}
 function toast(msg){const el=$('toast');el.textContent=msg;el.classList.add('show');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>el.classList.remove('show'),1700)}
 function sound(freq=430,dur=.06,type='sine',vol=.035){if(muted)return;try{audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();const osc=audioCtx.createOscillator(),gain=audioCtx.createGain();osc.type=type;osc.frequency.setValueAtTime(freq,audioCtx.currentTime);gain.gain.setValueAtTime(vol,audioCtx.currentTime);gain.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+dur);osc.connect(gain).connect(audioCtx.destination);osc.start();osc.stop(audioCtx.currentTime+dur)}catch{}}
 function updateUI(){
@@ -56,7 +76,7 @@ function updateUI(){
  const btn=$('nextWaveBtn');btn.disabled=state.phase!=='plan';btn.innerHTML=state.phase==='combat'?'Волна идёт…':'Запустить волну <span aria-hidden="true">→</span>';
 }
 function showModal(id,visible){$(id).classList.toggle('hidden',!visible)}
-function start(){state=newState();state.phase='plan';selectedPad=-1;pendingType=null;['startModal','upgradeModal','deadModal'].forEach(id=>showModal(id,false));updateControls();updateUI();toast('Построй башни и запусти первую волну');}
+function start(){prepareAudio();state=newState();state.phase='plan';selectedPad=-1;pendingType=null;['startModal','upgradeModal','deadModal'].forEach(id=>showModal(id,false));updateControls();updateUI();toast('Построй башни и запусти первую волну');}
 function startWave(){if(state.phase!=='plan')return;state.wave+=1;state.phase='combat';state.spawnTotal=5+Math.floor(state.wave*2.8)+(state.wave%5===0?1:0);state.spawnIndex=0;state.spawnTimer=.2;state.spawnGap=Math.max(.4,1.12-state.wave*.032);state.waveTime=0;toast(`ВОЛНА ${state.wave} — ВНИМАНИЕ`);sound(320,.22,'triangle');updateUI();}
 function enemyType(index){if(state.wave%5===0&&index===state.spawnTotal-1)return 'boss';if(state.wave>=3&&index%5===4)return 'tank';if(state.wave>=2&&index%4===2)return 'runner';return 'normal';}
 function spawnEnemy(index){const lane=(index*7+state.wave)%3,type=enemyType(index),isBoss=type==='boss';const maxHp=(isBoss?440:type==='tank'?130:type==='runner'?44:70)*Math.pow(1.135,state.wave-1);const speed=(isBoss?31:type==='tank'?35:type==='runner'?77:54)*Math.pow(1.014,state.wave-1);const p=getPoint(lane,0);state.enemies.push({id:Math.random(),lane,type,t:0,x:p.x,y:p.y,hp:maxHp,maxHp,spd:speed,slow:0,burn:0,burnDps:0,r:isBoss?24:type==='tank'?19:type==='runner'?11:14,reward:isBoss?110:type==='tank'?22:type==='runner'?14:12,impact:isBoss?32:type==='tank'?17:10,angle:0});}
@@ -135,10 +155,10 @@ function update(dt){elapsed+=dt;state.frames++;for(let i=state.fx.length-1;i>=0;
  for(const t of state.towers){t.cool-=delta;if(t.cool>0)continue;const ty=TOWERS[t.type],range=ty.range*state.mods.range;
  const target=state.enemies.filter(e=>dist(t,e)<range).sort((a,b)=>b.t-a.t)[0];if(target)shoot(t,target);}
  for(let i=state.bullets.length-1;i>=0;i--){const b=state.bullets[i],t=state.enemies.find(e=>e.id===b.target);if(!t){state.bullets.splice(i,1);continue;}const d=dist(b,t),travel=b.speed*delta;if(d<travel+t.r){hitEnemy(b,t);state.bullets.splice(i,1);updateUI();}else{b.x+=(t.x-b.x)/d*travel;b.y+=(t.y-b.y)/d*travel;}}
- if(state.spawnIndex===state.spawnTotal&&state.enemies.length===0){state.phase='upgrade';showUpgrades();updateUI();}
+ if(state.spawnIndex===state.spawnTotal&&state.enemies.length===0){state.hp=Math.min(state.maxHp,state.hp+4*researchLevel('repair'));state.phase='upgrade';showUpgrades();updateUI();}
 }
 function showUpgrades(){const pick=MODULES.filter(m=>m.id!=='repair'||state.hp<state.maxHp);const options=[...pick].sort(()=>Math.random()-.5).slice(0,3);const root=$('upgradeCards');root.replaceChildren();options.forEach(m=>{const btn=document.createElement('button');btn.className='upgrade-card';btn.innerHTML=`<span>${m.icon}</span><b>${m.title}</b><small>${m.text}</small>`;btn.addEventListener('click',()=>{m.apply(state);state.selectedModule.push(m.id);state.phase='plan';state.money+=24+state.wave*3;showModal('upgradeModal',false);sound(810,.18,'triangle');toast(`Модуль установлен: ${m.title}`);updateUI();updateControls();});root.appendChild(btn);});showModal('upgradeModal',true);sound(870,.12);}
-function die(){state.phase='dead';const shards=Math.max(2,Math.floor(state.wave*1.9+state.kills*.12));meta.shards+=shards;persist();$('resultWaves').textContent=Math.max(0,state.wave-1);$('resultKills').textContent=state.kills;$('resultShards').textContent=`+${shards}`;$('endDescription').textContent=`Волна ${state.wave} прорвала вашу оборону. Осколки сохранены для будущих забегов.`;showModal('deadModal',true);updateMeta();updateUI();sound(110,.4,'sawtooth');}
+function die(){state.phase='dead';const shards=Math.max(2,Math.floor((state.wave*1.9+state.kills*.12)*(1+.1*researchLevel('extract'))));meta.shards+=shards;persist();$('resultWaves').textContent=Math.max(0,state.wave-1);$('resultKills').textContent=state.kills;$('resultShards').textContent=`+${shards}`;$('endDescription').textContent=`Волна ${state.wave} прорвала вашу оборону. Осколки сохранены для будущих забегов.`;showModal('deadModal',true);updateMeta();updateUI();sound(110,.4,'sawtooth');}
 function circle(x,y,r,fill,stroke,width=1){ctx.beginPath();ctx.arc(x,y,r,0,TAU);if(fill){ctx.fillStyle=fill;ctx.fill()}if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=width;ctx.stroke()}}
 function line(points,color,width){ctx.beginPath();points.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.strokeStyle=color;ctx.lineWidth=width;ctx.lineJoin='round';ctx.lineCap='round';ctx.stroke()}
 function poly(x,y,r,n,rotation,fill,stroke,width=1){ctx.beginPath();for(let i=0;i<n;i++){const a=rotation+i*TAU/n;ctx[i?'lineTo':'moveTo'](x+Math.cos(a)*r,y+Math.sin(a)*r)}ctx.closePath();if(fill){ctx.fillStyle=fill;ctx.fill()}if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=width;ctx.stroke();}}
