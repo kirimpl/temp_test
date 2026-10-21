@@ -7,6 +7,7 @@
   <meta name="description" content="VAYRHEX — браузерная тактическая Tower Defense. Строй башни, защищай ядро и выбирай улучшения.">
   <title>VAYRHEX · Tower Defense</title>
   <link rel="stylesheet" href="ui-v03.css">
+<link rel="stylesheet" href="atlas-v08.css">
 </head>
 <body>
 <main class="app">
@@ -14,7 +15,7 @@
     <div class="identity">
       <span class="emblem emblem--small" aria-hidden="true"><span class="emblem-outer"><span class="emblem-inner"><span class="emblem-core"></span></span></span></span>
       <span class="wordmark">vayr<span>hex</span></span>
-      <span class="build-id">BETA / 06</span>
+      <span class="build-id">BETA / 08</span>
     </div>
     <div class="header-tools"><span class="session-indicator"><span></span> Локальная игра</span><button class="header-button" id="muteBtn" title="Включить звук" aria-label="Включить звук">♪̸</button></div>
   </header>
@@ -49,7 +50,7 @@
     </div>
   </section>
 
-  <footer class="helpbar"><span><span class="help-key">1</span> Выбери башню <span class="help-arrow">→</span> <span class="help-key">2</span> Поставь на узел <span class="help-arrow">→</span> <span class="help-key">3</span> Запусти волну</span><span class="help-version">VAYRHEX 0.6</span></footer>
+  <footer class="helpbar"><span><span class="help-key">1</span> Выбери башню <span class="help-arrow">→</span> <span class="help-key">2</span> Поставь на узел <span class="help-arrow">→</span> <span class="help-key">3</span> Запусти волну</span><span class="help-version">VAYRHEX 0.8</span></footer>
 </main>
 
 <!-- Эти окна находятся вне игрового поля: в портретной ориентации они не сжимают игровую карту. -->
@@ -98,19 +99,42 @@
     <div class="panel-footer"><small>Настройки применяются сразу и сохраняются автоматически.</small><button id="settingsDone" class="primary panel-action">Готово</button></div>
   </section>
 </div>
+
 <div class="modal hidden" id="researchModal" role="dialog" aria-modal="true" aria-labelledby="researchTitle">
   <div class="modal-backdrop"></div>
-  <section class="dialog-pane research-pane" aria-label="Постоянные исследования">
-    <div class="panel-header"><div><span class="panel-kicker">ПОСТОЯННЫЕ УЛУЧШЕНИЯ</span><h2 id="researchTitle">Исследования</h2></div><button class="close-panel" id="researchClose" aria-label="Вернуться в меню">✕</button></div>
-    <div class="research-currency"><span><span class="shard-mark" aria-hidden="true">◆</span><span class="shard-caption">ОСКОЛКИ <small>Валюта исследований</small></span></span><strong id="researchShards">0</strong></div>
-    <div class="research-body" id="researchBody">
-      <p class="research-intro">Выбирай направление развития. Все изученные технологии сохраняются между забегами.</p>
-      <div id="researchTree" class="research-tree" aria-label="Ветви исследований"></div>
+  <section class="dialog-pane atlas-pane" aria-label="Карта исследований">
+    <header class="atlas-header">
+      <div class="atlas-heading"><span class="atlas-eyebrow">ПОСТОЯННАЯ ПРОГРЕССИЯ</span><h2 id="researchTitle">Исследования</h2></div>
+      <div class="atlas-currency"><span class="atlas-shard">◆</span><span id="researchShards">0</span><small>осколков</small></div>
+      <button class="atlas-close" id="researchClose" aria-label="Закрыть исследования">✕</button>
+    </header>
+    <div class="atlas-toolbar">
+      <div class="atlas-legend"><i class="legend-owned"></i> Изучено <i class="legend-ready"></i> Доступно <i class="legend-locked"></i> Закрыто</div>
+      <div class="atlas-tools"><span id="atlasScaleValue">100%</span><button id="atlasZoomOut" type="button" aria-label="Уменьшить карту">−</button><button id="atlasZoomIn" type="button" aria-label="Увеличить карту">+</button><button id="atlasCenter" type="button" aria-label="К центру">⌖</button><button id="atlasFit" type="button">Вся карта</button></div>
     </div>
-    <nav id="researchNavigation" class="research-navigation" role="tablist" aria-label="Выбор раздела исследований"></nav>
-    <div class="panel-footer"><small id="researchTotal">0 улучшений изучено</small><button id="researchDone" class="primary panel-action">Назад</button></div>
+    <div class="atlas-workspace">
+      <div id="atlasViewport" class="atlas-viewport" role="region" aria-label="Единое древо талантов. Перетаскивайте карту, колесо или жест двумя пальцами меняет масштаб.">
+        <div id="atlasWorld" class="atlas-world">
+          <svg id="atlasLines" class="atlas-lines" viewBox="0 0 2750 2250" aria-hidden="true"></svg>
+          <div id="atlasNodes" class="atlas-nodes"></div>
+        </div>
+        <span class="atlas-hint">ПЕРЕТАСКИВАНИЕ — ОБЗОР · КОЛЕСО — МАСШТАБ</span>
+      </div>
+      <aside class="atlas-inspector" id="atlasInspector" aria-live="polite">
+        <div class="atlas-inspector-top"><small id="atlasDetailType">ЦЕНТР СИСТЕМЫ</small><span id="atlasDetailLevel">—</span></div>
+        <div class="atlas-detail-icon" id="atlasDetailIcon">⬡</div>
+        <h3 id="atlasDetailName">Ядро</h3>
+        <p id="atlasDetailDesc">Выбирай узлы на карте и развивай единую сеть технологий.</p>
+        <div class="atlas-detail-progress" id="atlasDetailProgress"></div>
+        <div class="atlas-detail-requirement" id="atlasDetailRequirement"></div>
+        <button class="atlas-purchase" id="atlasPurchase" type="button" disabled>Выбери технологию</button>
+        <span id="atlasDetailNote" class="atlas-detail-note">Изученное сохраняется между забегами.</span>
+      </aside>
+    </div>
+    <footer class="atlas-footer"><span id="researchTotal">Загрузка карты…</span><button class="atlas-back" id="researchDone" type="button">Вернуться в меню</button></footer>
   </section>
 </div>
+<script src="atlas-v08.js"></script>
 <script src="game.js"></script>
 </body>
 </html>
