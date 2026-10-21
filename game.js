@@ -66,7 +66,35 @@ function newState(){const hp=100+meta.coreLevel*12+researchLevel('plating')*15+r
 function init(){state=newState();selectedPad=-1;pendingType=null;updateMeta();updateUI();updateControls();syncSettingsControls();}
 function updateMeta(){$('shardCount').textContent=`${meta.shards} осколков`;const el=$('researchShards');if(el)el.textContent=meta.shards;}
 function toast(msg){const el=$('toast');el.textContent=msg;el.classList.add('show');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>el.classList.remove('show'),1700)}
-function sound(freq=430,dur=.06,type='sine',vol=.035){if(muted)return;try{audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();const osc=audioCtx.createOscillator(),gain=audioCtx.createGain();osc.type=type;osc.frequency.setValueAtTime(freq,audioCtx.currentTime);gain.gain.setValueAtTime(vol,audioCtx.currentTime);gain.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+dur);osc.connect(gain).connect(audioCtx.destination);osc.start();osc.stop(audioCtx.currentTime+dur)}catch{}}
+function prepareAudio(){try{if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume();if(!musicBus){musicBus=audioCtx.createGain();musicBus.connect(audioCtx.destination);musicBus.gain.value=0;}if(!musicStarted){musicStarted=true;nextMusicNote=audioCtx.currentTime+.12;}applyMusicVolume();}catch{}}
+function applyMusicVolume(){if(musicBus&&audioCtx)musicBus.gain.setTargetAtTime(muted||document.hidden?0:settings.musicVolume/100*.15,audioCtx.currentTime,.1)}
+// An original synth sequence generated in the browser; no external music assets.
+function scheduleMusic(){if(!audioCtx||!musicBus||audioCtx.state!=='running'||!musicStarted)return;if(nextMusicNote<audioCtx.currentTime-.4)nextMusicNote=audioCtx.currentTime+.04;
+const notes=[110,164.81,146.83,220,98,146.83,130.81,196];let count=0;
+while(nextMusicNote<audioCtx.currentTime+.2&&count++<4){if(!document.hidden&&settings.musicVolume>0&&!muted&&state.phase!=='dead'&&state.phase!=='menu'){
+const when=Math.max(nextMusicNote,audioCtx.currentTime+.002),o=audioCtx.createOscillator(),g=audioCtx.createGain();
+o.type='triangle';o.frequency.setValueAtTime(notes[musicStep%notes.length],when);g.gain.setValueAtTime(.0001,when);g.gain.exponentialRampToValueAtTime(.19,when+.07);g.gain.exponentialRampToValueAtTime(.0001,when+.67);o.connect(g).connect(musicBus);o.start(when);o.stop(when+.7);
+}nextMusicNote+=.86;musicStep++;}}
+function sound(freq=430,dur=.06,type='sine',vol=.035){if(muted||settings.shotsVolume===0)return;try{if(!audioCtx)prepareAudio();const osc=audioCtx.createOscillator(),gain=audioCtx.createGain();osc.type=type;osc.frequency.setValueAtTime(freq,audioCtx.currentTime);gain.gain.setValueAtTime(Math.max(.0001,vol*settings.shotsVolume/100),audioCtx.currentTime);gain.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+dur);osc.connect(gain).connect(audioCtx.destination);osc.start();osc.stop(audioCtx.currentTime+dur)}catch{}}
+function syncSettingsControls(){for(const key of ['musicVolume','shotsVolume','shotLimit','shotOpacity']){const input=$(key),label=$(key+'Text');if(!input||!label)continue;input.value=settings[key];label.textContent=String(settings[key])+(key==='shotLimit'?'':'%');}}
+function updateSetting(key,value){settings[key]=safeInt(value,DEFAULT_SETTINGS[key],0,key==='shotLimit'?120:100);syncSettingsControls();saveSettings();if(key==='musicVolume'){prepareAudio();applyMusicVolume();}}
+function openPanel(id){showModal('startModal',false);showModal(id,true);if(id==='researchModal')renderResearch();}
+function closePanel(id){showModal(id,false);showModal('startModal',true);updateMeta();}
+function renderResearch(){const root=$('researchTree');root.replaceChildren();updateMeta();let total=0;
+for(const [branch,title] of [['core','ЯДРО'],['weapons','ВООРУЖЕНИЕ'],['economy','РЕСУРСЫ']]){
+ const col=document.createElement('section');col.className='research-branch';const heading=document.createElement('div');heading.className='branch-label';heading.textContent=title;const list=document.createElement('div');list.className='branch-nodes';col.append(heading,list);
+ for(const node of RESEARCH.filter(n=>n.branch===branch)){
+  const level=researchLevel(node.id);total+=level;const locked=!!node.requires&&researchLevel(node.requires)===0,done=level>=node.max,cost=done?0:node.cost[level],afford=meta.shards>=cost;
+  const item=document.createElement('article');item.className='research-node'+(locked?' is-locked':'')+(done?' is-maxed':'');
+  const top=document.createElement('div');top.className='research-node-top';const icon=document.createElement('span');icon.className='research-symbol';icon.textContent=node.symbol;const name=document.createElement('span');name.className='research-node-name';name.textContent=node.name;const rank=document.createElement('span');rank.className='research-level';rank.textContent=level+'/'+node.max;top.append(icon,name,rank);
+  const desc=document.createElement('div');desc.className='research-node-desc';desc.textContent=node.desc;
+  const button=document.createElement('button');button.className='research-purchase';button.disabled=done||locked||!afford;const message=done?'Изучено':locked?'Нужен предыдущий узел':afford?'Исследовать':'Недостаточно осколков';button.textContent=message+(done||locked?'':' · '+cost+' ◆');
+  button.addEventListener('click',()=>{const current=researchLevel(node.id);if(current>=node.max||node.requires&&researchLevel(node.requires)===0||meta.shards<node.cost[current])return;meta.shards-=node.cost[current];meta.research[node.id]=current+1;persist();sound(780,.11,'triangle');renderResearch();});
+  item.append(top,desc,button);list.append(item);
+ }
+ root.append(col);
+} $('researchTotal').textContent=total+' уровней изучено';}
+
 function updateUI(){
  $('hpText').textContent=`${Math.max(0,Math.ceil(state.hp))} / ${state.maxHp}`;$('hpBar').style.width=`${Math.max(0,state.hp/state.maxHp)*100}%`;
  $('waveText').textContent=`${state.wave} / ∞`;$('moneyText').textContent=Math.floor(state.money);$('killsText').textContent=state.kills;
@@ -197,17 +225,21 @@ function drawFX(){for(const b of state.bullets){ctx.save();ctx.shadowColor=b.col
 function drawVignette(){const g=ctx.createRadialGradient(W/2,H/2,100,W/2,H/2,580);g.addColorStop(0,'#00000000');g.addColorStop(1,'#030714ad');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
  if(state.phase==='combat'){ctx.font='bold 11px system-ui';ctx.textAlign='left';ctx.fillStyle='#a2c8da';ctx.fillText(`HOSTILES // ${state.enemies.length} ACTIVE`,20,23);ctx.fillText(`INCOMING // ${Math.max(0,state.spawnTotal-state.spawnIndex)}`,20,40);}}
 function draw(){drawBackground();drawPads();drawCore();drawTowers();drawEnemies();drawFX();drawVignette();}
-function tick(now){const delta=Math.min(.045,(now-last)/1000);last=now;update(delta);draw();requestAnimationFrame(tick)}
+function tick(now){const delta=Math.min(.045,(now-last)/1000);last=now;update(delta);scheduleMusic();draw();requestAnimationFrame(tick)}
 // Prevent the browser context menu during in-game long presses (Yandex Games requirement).
 canvas.addEventListener('contextmenu',ev=>ev.preventDefault());
 canvas.addEventListener('pointerdown',ev=>{if(state.phase!=='plan'&&state.phase!=='combat')return;const rect=canvas.getBoundingClientRect(),px=(ev.clientX-rect.left)/rect.width*W,py=(ev.clientY-rect.top)/rect.height*H;
  let best=-1,dmin=Number.POSITIVE_INFINITY;pads.forEach((p,i)=>{const d=Math.hypot(px-p[0],py-p[1]);if(d<dmin){dmin=d;best=i;}});if(dmin<53)selectPad(best);else{selectedPad=-1;pendingType=null;updateControls();}});
 $('playBtn').addEventListener('click',start);$('restartBtn').addEventListener('click',start);$('nextWaveBtn').addEventListener('click',startWave);
 $('speedBtn').addEventListener('click',()=>{state.speed=state.speed===1?2:1;updateUI();});
-$('muteBtn').addEventListener('click',()=>{muted=!muted;$('muteBtn').textContent=muted?'♪̸':'♪';$('muteBtn').setAttribute('aria-label',muted?'Включить звук':'Выключить звук');if(!muted)sound(660,.1);});
+$('muteBtn').addEventListener('click',()=>{muted=!muted;$('muteBtn').textContent=muted?'♪̸':'♪';$('muteBtn').setAttribute('aria-label',muted?'Включить звук':'Выключить звук');prepareAudio();applyMusicVolume();if(!muted)sound(660,.1);});
 $('fullscreenBtn').addEventListener('click',async()=>{try{if(document.fullscreenElement){await document.exitFullscreen();}else{await document.querySelector('.gamebox').requestFullscreen();}}catch{toast('Полноэкранный режим недоступен — поверни телефон горизонтально');}});
 document.addEventListener('fullscreenchange',()=>{$('fullscreenBtn').setAttribute('aria-label',document.fullscreenElement?'Выйти из полного экрана':'Полноэкранный режим');});
-$('metaBuy').addEventListener('click',()=>{const cost=metaCost();if(meta.shards<cost)return;meta.shards-=cost;meta.coreLevel++;persist();state.maxHp=100+meta.coreLevel*12;state.hp=state.maxHp;updateMeta();updateUI();toast('Усиление ядра приобретено!');sound(740,.12);});
-window.addEventListener('keydown',ev=>{if(['Enter',' '].includes(ev.key)&&state.phase==='plan'&&ev.target.tagName!=='BUTTON'){ev.preventDefault();startWave();}if(ev.key==='Escape'){selectedPad=-1;updateControls();}});
+$('settingsBtn').addEventListener('click',()=>openPanel('settingsModal'));
+$('researchBtn').addEventListener('click',()=>openPanel('researchModal'));
+for(const key of ['musicVolume','shotsVolume','shotLimit','shotOpacity'])$(key).addEventListener('input',ev=>updateSetting(key,ev.target.value));
+for(const [button,id] of [['settingsClose','settingsModal'],['settingsDone','settingsModal'],['researchClose','researchModal'],['researchDone','researchModal']])$(button).addEventListener('click',()=>closePanel(id));
+document.addEventListener('visibilitychange',()=>{if(audioCtx&&audioCtx.state==='running'&&document.hidden)audioCtx.suspend();else if(!document.hidden&&audioCtx&&musicStarted)audioCtx.resume();applyMusicVolume();});
+window.addEventListener('keydown',ev=>{if(['Enter',' '].includes(ev.key)&&state.phase==='plan'&&ev.target.tagName!=='BUTTON'){ev.preventDefault();startWave();}if(ev.key==='Escape'){if(!$('settingsModal').classList.contains('hidden')){closePanel('settingsModal');return}if(!$('researchModal').classList.contains('hidden')){closePanel('researchModal');return}selectedPad=-1;updateControls();}});
 init();requestAnimationFrame(tick);
 })();
