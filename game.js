@@ -130,41 +130,80 @@ function researchRequirements(node){if(!node.requires)return true;const dep=type
  const key=activeResearchTab==='general'?dep.id:`tower.${activeResearchTab}.${dep.id}`;return researchLevel(key)>=dep.level;}
 function nodeLevel(node){return activeResearchTab==='general'?researchLevel(node.id):towerLevel(activeResearchTab,node.id);}
 function renderResearch(){
- const body=$('researchBody'),oldScroll=body.scrollTop,nav=$('researchNavigation'),oldNavScroll=nav.scrollLeft;
- nav.replaceChildren();const options=[['general','Общее','⬡'],...Object.entries(TOWERS).map(([key,ty])=>[key,ty.name,ty.icon])];
- for(const [key,title,symbol] of options){const item=document.createElement('button');item.type='button';item.className='research-tab'+(key===activeResearchTab?' is-current':'')+(!towerUnlocked(key)&&key!=='general'?' is-unavailable':'');item.setAttribute('aria-selected',String(key===activeResearchTab));item.setAttribute('role','tab');item.dataset.tab=key;
- const count=key==='general'?RESEARCH.reduce((n,x)=>n+researchLevel(x.id),0):TOWER_RESEARCH[key].reduce((n,x)=>n+towerLevel(key,x.id),0);
- item.innerHTML=`<span class="tab-symbol">${symbol}</span><span class="tab-copy"><b>${title}</b><small>${key==='general'?count+' уровней':!towerUnlocked(key)?'Закрыта':count+' улучшений'}</small></span>${!towerUnlocked(key)&&key!=='general'?'<span class="tab-lock" aria-label="Закрыта">⌑</span>':''}`;
- item.addEventListener('click',()=>{activeResearchTab=key;renderResearch();body.scrollTop=0;item.focus();});nav.appendChild(item);
+ const body=$('researchBody'), oldScroll=body.scrollTop, nav=$('researchNavigation'), oldNavScroll=nav.scrollLeft;
+ nav.replaceChildren();
+ const options=[['general','Общее','⬡'],...Object.entries(TOWERS).map(([key,ty])=>[key,ty.name,ty.icon])];
+ for(const [key,title,symbol] of options){
+  const item=document.createElement('button');item.type='button';
+  const isLocked=key!=='general'&&!towerUnlocked(key);
+  item.className='research-tab'+(key===activeResearchTab?' is-current':'')+(isLocked?' is-unavailable':'');
+  item.setAttribute('role','tab');item.setAttribute('aria-selected',String(key===activeResearchTab));item.dataset.tab=key;
+  const count=key==='general'?RESEARCH.reduce((n,x)=>n+researchLevel(x.id),0):TOWER_RESEARCH[key].reduce((n,x)=>n+towerLevel(key,x.id),0);
+  item.innerHTML=`<span class="tab-symbol">${symbol}</span><span class="tab-copy"><b>${title}</b><small>${isLocked?'Не открыта':count+' ур.'}</small></span>${isLocked?'<span class="tab-lock" aria-hidden="true">⌑</span>':''}`;
+  item.addEventListener('click',()=>{activeResearchTab=key;renderResearch();body.scrollTop=0;item.focus({preventScroll:true});});nav.appendChild(item);
  }
- nav.scrollLeft=oldNavScroll;nav.querySelector('.is-current')?.scrollIntoView({block:'nearest',inline:'nearest'});
- const container=$('researchTree');container.replaceChildren();updateMeta();let count=0;
- if(activeResearchTab!=='general'&&!towerUnlocked(activeResearchTab)){
-   const ty=TOWERS[activeResearchTab],el=document.createElement('section');el.className='research-unlock';
-   el.innerHTML=`<span class="unlock-icon" style="--tower-color:${ty.color}">${ty.icon}</span><div class="unlock-description"><small>НОВАЯ БАШНЯ</small><h3>${ty.name}</h3><p>${ty.desc}. Открытие добавит башню в список строительства всех будущих забегов. Затем появятся шесть веток улучшений.</p></div>`;
-   const unlock=document.createElement('button');unlock.className='research-unlock-button';unlock.disabled=meta.shards<ty.unlockCost;unlock.textContent=meta.shards<ty.unlockCost?`Нужно ${ty.unlockCost} ◆`:`Открыть башню · ${ty.unlockCost} ◆`;
-   unlock.addEventListener('click',()=>{if(towerUnlocked(activeResearchTab)||meta.shards<ty.unlockCost)return;meta.shards-=ty.unlockCost;meta.unlockedTowers.push(activeResearchTab);persist();sound(700,.15,'triangle');renderResearch();updateControls();});el.appendChild(unlock);container.appendChild(el);
- }else{
-  const branches=activeResearchTab==='general'?[['core','ЯДРО'],['weapons','ВООРУЖЕНИЕ'],['economy','РЕСУРСЫ']]:[['combat','БАЛЛИСТИКА'],['systems','ОСНАСТКА']];
-  container.className='research-tree'+(activeResearchTab==='general'?'':' tower-research-tree');
-  if(activeResearchTab!=='general'){
-   const t=TOWERS[activeResearchTab],summary=document.createElement('section');summary.className='tower-research-summary';
-   summary.innerHTML=`<span class="tower-summary-icon" style="--tower-color:${t.color}">${t.icon}</span><div><small>ИССЛЕДОВАНИЯ БАШНИ</small><h3>${t.name}</h3><p>${t.desc} · Бонусы постоянные и действуют на каждую построенную башню этого типа.</p></div>`;
-   container.appendChild(summary);
-  }
-  for(const [branch,label] of branches){const col=document.createElement('section');col.className='research-branch';const title=document.createElement('div');title.className='branch-label';title.textContent=label;const list=document.createElement('div');list.className='branch-nodes';col.append(title,list);
-   for(const node of currentResearch().filter(n=>n.branch===branch)){const level=nodeLevel(node);count+=level;const locked=!researchRequirements(node),maxed=level>=node.max,cost=maxed?0:node.cost[level],enough=meta.shards>=cost;
-    const box=document.createElement('article');box.className='research-node'+(locked?' is-locked':'')+(maxed?' is-maxed':'');
-    const top=document.createElement('div');top.className='research-node-top';const sym=document.createElement('span');sym.className='research-symbol';sym.textContent=node.symbol;const name=document.createElement('span');name.className='research-node-name';name.textContent=node.name;const rank=document.createElement('span');rank.className='research-level';rank.textContent=level+'/'+node.max;top.append(sym,name,rank);
+ nav.scrollLeft=oldNavScroll;
+ const selectedNav=nav.querySelector('.is-current');if(selectedNav){
+  const left=selectedNav.offsetLeft,right=left+selectedNav.offsetWidth;
+  if(left<nav.scrollLeft)nav.scrollLeft=left;
+  else if(right>nav.scrollLeft+nav.clientWidth)nav.scrollLeft=right-nav.clientWidth;
+ }
+ const container=$('researchTree');container.replaceChildren();
+ const isGeneral=activeResearchTab==='general';
+ container.className='research-tree'+(!isGeneral?' tower-research-tree':'');
+ updateMeta();
+ const nodes=currentResearch(), levels=nodes.reduce((n,x)=>n+nodeLevel(x),0),maxLevels=nodes.reduce((n,x)=>n+x.max,0);
+ const progress=Math.round(levels/Math.max(1,maxLevels)*100);
+ if(!isGeneral&&!towerUnlocked(activeResearchTab)){
+  const ty=TOWERS[activeResearchTab],el=document.createElement('section');el.className='research-unlock';
+  el.style.setProperty('--tower-color',ty.color);
+  el.innerHTML=`<div class="unlock-icon" aria-hidden="true">${ty.icon}</div><div class="unlock-description"><small>НЕИЗВЕСТНАЯ ТЕХНОЛОГИЯ / НОВАЯ БАШНЯ</small><h3>${ty.name}</h3><p>${ty.desc}. Разблокируй тип башни, чтобы строить её во время забега и исследовать собственную ветку модулей.</p><span class="unlock-index">06 исследований · постоянные улучшения</span></div>`;
+  const unlock=document.createElement('button');unlock.className='research-unlock-button';unlock.disabled=meta.shards<ty.unlockCost;
+  unlock.innerHTML=meta.shards<ty.unlockCost?`<span>Нужно ещё ${ty.unlockCost-meta.shards} ◆</span><strong>${ty.unlockCost} ◆</strong>`:`<span>Открыть башню</span><strong>${ty.unlockCost} ◆</strong>`;
+  unlock.addEventListener('click',()=>{if(towerUnlocked(activeResearchTab)||meta.shards<ty.unlockCost)return;meta.shards-=ty.unlockCost;meta.unlockedTowers.push(activeResearchTab);persist();sound(700,.15,'triangle');renderResearch();updateControls();});
+  el.append(unlock);container.append(el);
+ } else {
+  const overview=document.createElement('div');overview.className='research-overview';
+  const accent=isGeneral?'#c5e887':TOWERS[activeResearchTab].color;
+  overview.style.setProperty('--tower-color',accent);
+  const name=isGeneral?'Система обороны':TOWERS[activeResearchTab].name;
+  const symbol=isGeneral?'⬡':TOWERS[activeResearchTab].icon;
+  const detail=isGeneral?'Развивай инфраструктуру, вооружение и экономику. Эти исследования влияют на все будущие забеги.':TOWERS[activeResearchTab].desc+'. Улучшения применяются ко всем построенным башням данного типа.';
+  overview.innerHTML=`<div class="overview-symbol" aria-hidden="true"><span>${symbol}</span></div><div class="overview-description"><span class="overview-eyebrow">${isGeneral?'ОБЩАЯ МОДЕРНИЗАЦИЯ':'ОБОРУДОВАНИЕ / БАШНЯ'}</span><h3>${name}</h3><p>${detail}</p></div><div class="overview-meter"><span>ИССЛЕДОВАНО</span><strong>${progress}<small>%</small></strong><div class="meter-track"><i style="width:${progress}%"></i></div><small>${levels} / ${maxLevels} уровней</small></div>`;
+  container.append(overview);
+  const branches=isGeneral?[['core','Ядро'],['weapons','Оружие'],['economy','Экономика']]:[['combat','Баллистика'],['systems','Оснастка']];
+  let branchIndex=0;
+  for(const [branch,label] of branches){
+   const items=nodes.filter(n=>n.branch===branch),col=document.createElement('section');col.className='research-branch';
+   const title=document.createElement('div');title.className='branch-header';
+   const earned=items.reduce((n,x)=>n+nodeLevel(x),0),total=items.reduce((n,x)=>n+x.max,0);
+   title.innerHTML=`<span class="branch-index">${String(++branchIndex).padStart(2,'0')}</span><div class="branch-heading"><small>ВЕТКА ИССЛЕДОВАНИЙ</small><strong>${label}</strong></div><span class="branch-completion">${earned}<span> / ${total}</span></span>`;
+   const list=document.createElement('div');list.className='branch-nodes';col.append(title,list);
+   for(const [i,node] of items.entries()){
+    const level=nodeLevel(node),locked=!researchRequirements(node),maxed=level>=node.max,cost=maxed?0:node.cost[level],enough=meta.shards>=cost;
+    const box=document.createElement('article');
+    box.className='research-node'+(locked?' is-locked':'')+(maxed?' is-maxed':'')+(!locked&&!maxed&&enough?' is-ready':'');
+    const top=document.createElement('div');top.className='research-node-top';
+    top.innerHTML=`<span class="research-symbol" aria-hidden="true">${node.symbol}</span><span class="research-node-heading"><small>МОДУЛЬ ${String(i+1).padStart(2,'0')}</small><strong class="research-node-name">${node.name}</strong></span><span class="research-level">${level}<span>/${node.max}</span></span>`;
     const desc=document.createElement('div');desc.className='research-node-desc';desc.textContent=node.desc;
+    const pips=document.createElement('div');pips.className='research-pips';pips.setAttribute('aria-label',`Изучено уровней: ${level} из ${node.max}`);
+    for(let k=0;k<node.max;k++){const pip=document.createElement('i');if(k<level)pip.className='is-filled';pips.append(pip);}
+    const action=document.createElement('div');action.className='research-action';
     const button=document.createElement('button');button.className='research-purchase';button.disabled=locked||maxed||!enough;
-    button.textContent=(maxed?'Изучено':locked?'Нужен предыдущий узел':!enough?'Недостаточно осколков':'Исследовать')+(maxed||locked?'':' · '+cost+' ◆');
-    button.addEventListener('click',()=>{const current=nodeLevel(node);if(current>=node.max||!researchRequirements(node)||meta.shards<node.cost[current])return;meta.shards-=node.cost[current];const id=activeResearchTab==='general'?node.id:`tower.${activeResearchTab}.${node.id}`;meta.research[id]=current+1;persist();sound(780,.11,'triangle');renderResearch();});
-    box.append(top,desc,button);list.append(box);
-   }container.append(col);
+    if(maxed){button.innerHTML='<span>Изучено полностью</span><strong>✓</strong>';}
+    else if(locked){
+     const requires=typeof node.requires==='string'?{id:node.requires,level:1}:node.requires;
+     const prerequisite=nodes.find(n=>n.id===requires?.id);
+     button.innerHTML=`<span>Требуется: ${prerequisite?.name||'предыдущий модуль'}</span><strong>⌑</strong>`;
+    }else if(!enough){button.innerHTML=`<span>Не хватает ${cost-meta.shards} осколков</span><strong>${cost} ◆</strong>`;}
+    else{button.innerHTML=`<span>Исследовать</span><strong>${cost} ◆ &nbsp; ↗</strong>`;}
+    button.addEventListener('click',()=>{const current=nodeLevel(node);if(current>=node.max||!researchRequirements(node)||meta.shards<node.cost[current])return;meta.shards-=node.cost[current];const id=isGeneral?node.id:`tower.${activeResearchTab}.${node.id}`;meta.research[id]=current+1;persist();sound(780,.11,'triangle');renderResearch();});
+    action.append(button);box.append(top,desc,pips,action);list.append(box);
+   }
+   container.append(col);
   }
  }
- $('researchTotal').textContent=`${count} уровней · ${Object.keys(TOWERS).filter(towerUnlocked).length} / ${Object.keys(TOWERS).length} башен`;
+ $('researchTotal').textContent=`${levels} / ${maxLevels} ур. · ${Object.keys(TOWERS).filter(towerUnlocked).length} из ${Object.keys(TOWERS).length} башен`;
  body.scrollTop=oldScroll;
 }
 
