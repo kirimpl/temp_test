@@ -13,15 +13,16 @@ const TOWERS = {
   arc: {name:'ДУГА',icon:'ϟ',cost:105,range:158,dmg:22,rate:0.85,bullet:460,color:'#caa5ff',desc:'Цепные разряды',unlockCost:75},
   rail: {name:'РЕЛЬС',icon:'◇',cost:135,range:220,dmg:64,rate:0.50,bullet:650,color:'#ffdb8b',desc:'Пробивает цели',unlockCost:150}
 };
-const MODULES = [
-  {id:'force',icon:'⚡',title:'Перегрузка',text:'+25% урона всех башен',apply:s=>s.mods.damage*=1.25},
-  {id:'rate',icon:'◈',title:'Ускоритель',text:'+20% скорости стрельбы',apply:s=>s.mods.rate*=1.20},
-  {id:'range',icon:'◎',title:'Дальнобойность',text:'+18% радиуса атаки',apply:s=>s.mods.range*=1.18},
-  {id:'cash',icon:'✦',title:'Ресурсный импульс',text:'+110 кредитов сейчас',apply:s=>s.money+=110},
-  {id:'repair',icon:'✚',title:'Реконструкция',text:'Восстановить 40 HP ядра',apply:s=>s.hp=Math.min(s.maxHp,s.hp+40)},
-  {id:'chain',icon:'⌁',title:'Резонанс',text:'+1 цель цепной молнии для импульсных башен',apply:s=>s.mods.chain=Math.min(3,s.mods.chain+1)},
-  {id:'burn',icon:'♨',title:'Плазменный след',text:'+60% урона от горения',apply:s=>s.mods.burn*=1.6},
-  {id:'bounty',icon:'◇',title:'Утилизация',text:'+25% кредитов за врагов',apply:s=>s.mods.bounty*=1.25}
+// Limited additive wave bonuses; repeating a combat module never multiplies power.
+const MODULES=[
+{id:'force',icon:'⚡',title:'Настройка мощности',text:'+6% к урону башен',max:4,apply:s=>s.mods.damage+=.06},
+{id:'rate',icon:'◈',title:'Фазовый привод',text:'+5% к скорострельности',max:4,apply:s=>s.mods.rate+=.05},
+{id:'range',icon:'◎',title:'Сенсорный массив',text:'+4% к дальности',max:3,apply:s=>s.mods.range+=.04},
+{id:'cash',icon:'✦',title:'Логистика',text:'+35 кредитов сейчас',apply:s=>s.money+=35},
+{id:'repair',icon:'✚',title:'Ремонтный импульс',text:'Восстановить 16 HP ядра',apply:s=>s.hp=Math.min(s.maxHp,s.hp+16)},
+{id:'chain',icon:'⌁',title:'Контактный резонанс',text:'Импульс: +1 цель цепного разряда',max:1,apply:s=>s.mods.chain+=1},
+{id:'burn',icon:'♨',title:'Стабилизация плазмы',text:'+15% к урону горения',max:3,apply:s=>s.mods.burn+=.15},
+{id:'bounty',icon:'◇',title:'Сбор сплавов',text:'+7% кредитов за противника',max:4,apply:s=>s.mods.bounty+=.07}
 ];
 const pads = [[184,147],[296,267],[395,120],[405,412],[512,270],[604,142],[612,403],[714,203],[738,356],[225,414]];
 const paths = [
@@ -41,6 +42,17 @@ const particles=[];
 let state, selectedPad=-1, pendingType=null, last=performance.now(), elapsed=0, toastTimeout=0, audioCtx=null, muted=false;
 let musicBus=null, musicStarted=false, nextMusicNote=0, musicStep=0;
 const SETTINGS_KEY='vayrhex-settings-v1';
+// The preview provider is for UX testing only, with no actual ad impressions or revenue.
+const isDemoHost=['localhost','127.0.0.1'].includes(location.hostname)||location.hostname.endsWith('.pages.dev');
+const rewardProvider={
+ mode:isDemoHost?'demo':'disabled',
+ showRewarded({onOpen,onRewarded,onClose,onError}){
+  if(!isDemoHost){onError?.(new Error('SDK не подключён'));return;}
+  onOpen?.();
+  setTimeout(()=>{onRewarded?.();onClose?.(true)},650);
+ }
+};
+
 const DEFAULT_SETTINGS=Object.freeze({musicVolume:25,shotsVolume:45,shotLimit:30,shotOpacity:70});
 function safeInt(v,fallback,min,max){const n=Number(v);return Number.isFinite(n)?Math.max(min,Math.min(max,Math.round(n))):fallback;}
 function loadSettings(){try{const s=JSON.parse(localStorage.getItem(SETTINGS_KEY))||{};return {musicVolume:safeInt(s.musicVolume,25,0,100),shotsVolume:safeInt(s.shotsVolume,45,0,100),shotLimit:safeInt(s.shotLimit,30,0,120),shotOpacity:safeInt(s.shotOpacity,70,0,100)};}catch{return {...DEFAULT_SETTINGS};}}
@@ -91,9 +103,10 @@ let meta=saved();
 meta.shards=Math.max(0,Number(meta.shards)||0);meta.coreLevel=Math.min(15,Math.max(0,Number(meta.coreLevel)||0));
 meta.research=meta.research&&typeof meta.research==='object'&&!Array.isArray(meta.research)?meta.research:{};
 meta.unlockedTowers=Array.isArray(meta.unlockedTowers)?meta.unlockedTowers.filter(key=>TOWERS[key]?.unlockCost):[];
+meta.claimedRewardRuns=Array.isArray(meta.claimedRewardRuns)?meta.claimedRewardRuns.filter(x=>typeof x==='string').slice(-80):[];
 function persist(){try{localStorage.setItem('corebound-save-v1',JSON.stringify(meta))}catch{}}
 function newState(){const maxHp=100+meta.coreLevel*12+researchLevel('plating')*15+researchLevel('reserve')*25;
-return {phase:'menu',wave:0,hp:maxHp,maxHp,money:135+Math.min(meta.coreLevel,5)*8+researchLevel('capital')*15,kills:0,frames:0,waveTime:0,spawnIndex:0,spawnTotal:0,spawnGap:1.0,spawnTimer:0,selectedModule:[],enemies:[],towers:[],bullets:[],fx:[],mods:{damage:1+researchLevel('damage')*.07,range:1+researchLevel('range')*.05,rate:1+researchLevel('rate')*.06,chain:0,burn:1,bounty:1+researchLevel('salvage')*.06},speed:1};}
+return {runId:Date.now().toString(36)+'-'+Math.random().toString(36).slice(2),rewardedClaimed:false,rewardedPending:false,rewardBase:0,rewardBonus:0,phase:'menu',wave:0,hp:maxHp,maxHp,money:135+Math.min(meta.coreLevel,5)*8+researchLevel('capital')*15,kills:0,frames:0,waveTime:0,spawnIndex:0,spawnTotal:0,spawnGap:1.0,spawnTimer:0,selectedModule:[],enemies:[],towers:[],bullets:[],fx:[],mods:{damage:1+researchLevel('damage')*.07,range:1+researchLevel('range')*.05,rate:1+researchLevel('rate')*.06,chain:0,burn:1,bounty:1+researchLevel('salvage')*.06},speed:1};}
 
 function init(){state=newState();selectedPad=-1;pendingType=null;updateMeta();updateUI();updateControls();syncSettingsControls();}
 function updateMeta(){$('shardCount').textContent=`${meta.shards} осколков`;const el=$('researchShards');if(el)el.textContent=meta.shards;}
@@ -263,8 +276,57 @@ function update(dt){elapsed+=dt;state.frames++;for(let i=state.fx.length-1;i>=0;
  for(let i=state.bullets.length-1;i>=0;i--){const b=state.bullets[i],t=state.enemies.find(e=>e.id===b.target);if(!t){state.bullets.splice(i,1);continue;}const d=dist(b,t),travel=b.speed*delta;if(d<travel+t.r){hitEnemy(b,t);state.bullets.splice(i,1);updateUI();}else{b.x+=(t.x-b.x)/d*travel;b.y+=(t.y-b.y)/d*travel;}}
  if(state.spawnIndex===state.spawnTotal&&state.enemies.length===0){state.hp=Math.min(state.maxHp,state.hp+4*researchLevel('repair'));state.phase='upgrade';showUpgrades();updateUI();}
 }
-function showUpgrades(){const pick=MODULES.filter(m=>m.id!=='repair'||state.hp<state.maxHp);const options=[...pick].sort(()=>Math.random()-.5).slice(0,3);const root=$('upgradeCards');root.replaceChildren();options.forEach(m=>{const btn=document.createElement('button');btn.className='upgrade-card';btn.innerHTML=`<span>${m.icon}</span><b>${m.title}</b><small>${m.text}</small><i>УСТАНОВИТЬ МОДУЛЬ ↗</i>`;btn.addEventListener('click',()=>{m.apply(state);state.selectedModule.push(m.id);state.phase='plan';state.money+=24+state.wave*3;showModal('upgradeModal',false);sound(810,.18,'triangle');toast(`Модуль установлен: ${m.title}`);updateUI();updateControls();});root.appendChild(btn);});showModal('upgradeModal',true);sound(870,.12);}
-function die(){state.phase='dead';const shards=Math.max(2,Math.floor((state.wave*1.9+state.kills*.12)*(1+.1*researchLevel('extract'))));meta.shards+=shards;persist();$('resultWaves').textContent=Math.max(0,state.wave-1);$('resultKills').textContent=state.kills;$('resultShards').textContent=`+${shards}`;$('endDescription').textContent=`Волна ${state.wave} прорвала вашу оборону. Осколки сохранены для будущих забегов.`;showModal('deadModal',true);updateMeta();updateUI();sound(110,.4,'sawtooth');}
+function moduleCount(id){return state.selectedModule.filter(x=>x===id).length;}
+function availableModules(){return MODULES.filter(m=>(!m.max||moduleCount(m.id)<m.max)&&(m.id!=='repair'||state.hp<=state.maxHp-5));}
+function showUpgrades(){
+ const options=[...availableModules()];
+ for(let i=options.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[options[i],options[j]]=[options[j],options[i]];}
+ const root=$('upgradeCards');root.replaceChildren();
+ options.slice(0,3).forEach(m=>{
+  const level=moduleCount(m.id),btn=document.createElement('button');btn.className='upgrade-card';
+  const stacks=m.max?'<i class="module-stacks">Уровень '+(level+1)+' из '+m.max+'</i>':'';
+  btn.innerHTML='<span>'+m.icon+'</span><b>'+m.title+'</b><small>'+m.text+'</small>'+stacks+'<i>ВЫБРАТЬ ↗</i>';
+  btn.addEventListener('click',()=>{
+   if(state.phase!=='upgrade'||(m.max&&moduleCount(m.id)>=m.max))return;
+   m.apply(state);state.selectedModule.push(m.id);state.phase='plan';state.money+=24+state.wave*3;
+   showModal('upgradeModal',false);sound(810,.18,'triangle');toast('Модуль: '+m.title);updateUI();updateControls();
+  });root.appendChild(btn);
+ });showModal('upgradeModal',true);sound(870,.12);
+}
+function updateRewardUI(){
+ const button=$('rewardBonusBtn'),note=$('rewardBonusNote');
+ const used=state.rewardedClaimed||meta.claimedRewardRuns.includes(state.runId);
+ button.hidden=rewardProvider.mode!=='demo';button.disabled=used||state.rewardedPending;
+ button.textContent=used?'Бонус уже получен':state.rewardedPending?'Проверяем событие…':'Тест: получить +'+state.rewardBonus+' ◆';
+ note.textContent=used?'Дополнительные осколки начислены один раз.':rewardProvider.mode==='demo'?'Тестовый режим Cloudflare: настоящая реклама не показывается.':'Бонус недоступен: рекламный SDK ещё не подключён.';
+}
+function die(){
+ if(state.phase==='dead')return;
+ state.phase='dead';
+ const shards=Math.max(2,Math.floor((state.wave*1.9+state.kills*.12)*(1+.1*researchLevel('extract'))));
+ state.rewardBase=shards;state.rewardBonus=Math.max(1,Math.floor(shards*.30));
+ meta.shards+=shards;persist();
+ $('resultWaves').textContent=Math.max(0,state.wave-1);$('resultKills').textContent=state.kills;$('resultShards').textContent='+'+shards;
+ $('endDescription').textContent='Волна '+state.wave+' прорвала оборону. Осколки сохранены — бонус за просмотр необязателен.';
+ updateRewardUI();showModal('deadModal',true);updateMeta();updateUI();sound(110,.4,'sawtooth');
+}
+function claimRewardBonus(){
+ if(state.phase!=='dead'||state.rewardedClaimed||state.rewardedPending||meta.claimedRewardRuns.includes(state.runId))return;
+ if(rewardProvider.mode!=='demo')return;
+ const requestedRun=state.runId,bonus=state.rewardBonus;
+ state.rewardedPending=true;updateRewardUI();
+ rewardProvider.showRewarded({
+  onOpen:()=>{},
+  onRewarded:()=>{
+   if(state.runId!==requestedRun||state.phase!=='dead'||meta.claimedRewardRuns.includes(requestedRun))return;
+   meta.claimedRewardRuns.push(requestedRun);meta.claimedRewardRuns=meta.claimedRewardRuns.slice(-80);
+   meta.shards+=bonus;state.rewardedClaimed=true;persist();updateMeta();updateRewardUI();
+   toast('Демо-награда: +'+bonus+' осколков');
+  },
+  onClose:()=>{if(state.runId===requestedRun){state.rewardedPending=false;updateRewardUI();}},
+  onError:()=>{if(state.runId===requestedRun){state.rewardedPending=false;updateRewardUI();toast('Бонус недоступен');}}
+ });
+}
 function circle(x,y,r,fill,stroke,width=1){ctx.beginPath();ctx.arc(x,y,r,0,TAU);if(fill){ctx.fillStyle=fill;ctx.fill()}if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=width;ctx.stroke()}}
 function line(points,color,width){ctx.beginPath();points.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.strokeStyle=color;ctx.lineWidth=width;ctx.lineJoin='round';ctx.lineCap='round';ctx.stroke()}
 function poly(x,y,r,n,rotation,fill,stroke,width=1){ctx.beginPath();for(let i=0;i<n;i++){const a=rotation+i*TAU/n;ctx[i?'lineTo':'moveTo'](x+Math.cos(a)*r,y+Math.sin(a)*r)}ctx.closePath();if(fill){ctx.fillStyle=fill;ctx.fill()}if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=width;ctx.stroke();}}
@@ -316,7 +378,7 @@ function tick(now){const delta=Math.min(.045,(now-last)/1000);last=now;update(de
 canvas.addEventListener('contextmenu',ev=>ev.preventDefault());
 canvas.addEventListener('pointerdown',ev=>{if(state.phase!=='plan'&&state.phase!=='combat')return;const rect=canvas.getBoundingClientRect(),px=(ev.clientX-rect.left)/rect.width*W,py=(ev.clientY-rect.top)/rect.height*H;
  let best=-1,dmin=Number.POSITIVE_INFINITY;pads.forEach((p,i)=>{const d=Math.hypot(px-p[0],py-p[1]);if(d<dmin){dmin=d;best=i;}});if(dmin<53)selectPad(best);else{selectedPad=-1;pendingType=null;updateControls();}});
-$('playBtn').addEventListener('click',start);$('restartBtn').addEventListener('click',start);$('nextWaveBtn').addEventListener('click',startWave);
+$('playBtn').addEventListener('click',start);$('restartBtn').addEventListener('click',start);$('rewardBonusBtn').addEventListener('click',claimRewardBonus);$('nextWaveBtn').addEventListener('click',startWave);
 $('speedBtn').addEventListener('click',()=>{state.speed=state.speed===1?2:1;updateUI();});
 $('muteBtn').addEventListener('click',()=>{muted=!muted;$('muteBtn').textContent=muted?'♪̸':'♪';$('muteBtn').setAttribute('aria-label',muted?'Включить звук':'Выключить звук');prepareAudio();applyMusicVolume();if(!muted)sound(660,.1);});
 $('fullscreenBtn').addEventListener('click',async()=>{try{if(document.fullscreenElement){await document.exitFullscreen();}else{await document.querySelector('.gamebox').requestFullscreen();}}catch{toast('Полноэкранный режим недоступен — поверни телефон горизонтально');}});
