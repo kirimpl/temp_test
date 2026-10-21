@@ -20,7 +20,7 @@ jobs:
       - name: Check static site files
         run: |
           test -s index.html
-          test -s styles.css
+          test -s ui-v03.css
           test -s game.js
-          grep -q 'href="styles.css"' index.html
+          grep -q 'href="ui-v03.css"' index.html
           grep -q 'src="game.js"' index.html
