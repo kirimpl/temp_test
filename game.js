@@ -129,82 +129,142 @@ function currentResearch(){return activeResearchTab==='general'?RESEARCH:(TOWER_
 function researchRequirements(node){if(!node.requires)return true;const dep=typeof node.requires==='string'?{id:node.requires,level:1}:node.requires;
  const key=activeResearchTab==='general'?dep.id:`tower.${activeResearchTab}.${dep.id}`;return researchLevel(key)>=dep.level;}
 function nodeLevel(node){return activeResearchTab==='general'?researchLevel(node.id):towerLevel(activeResearchTab,node.id);}
+
+/* Unified interactive research constellation: one map, all towers and general tech. */
+const ATLAS_GROUPS={
+ general:{x:1700,y:1100,color:'#bbd77b',label:'Общее',symbol:'⬡'},
+ pulse:{x:950,y:1120,color:'#60e9fd',label:'Импульс',symbol:'✧'},
+ ember:{x:2450,y:1120,color:'#ffad72',label:'Пламя',symbol:'♨'},
+ frost:{x:1150,y:1800,color:'#9ca5ff',label:'Крио',symbol:'❄'},
+ arc:{x:2230,y:1800,color:'#caa5ff',label:'Дуга',symbol:'ϟ'},
+ rail:{x:1700,y:500,color:'#ffdb8b',label:'Рельс',symbol:'◇'}
+};
+const ATLAS_POS={
+ 'general.plating':[1460,910],'general.repair':[1330,790],'general.reserve':[1200,670],
+ 'general.damage':[1940,910],'general.rate':[2070,790],'general.range':[2200,670],
+ 'general.capital':[1680,1300],'general.salvage':[1680,1460],'general.extract':[1680,1620],
+ 'pulse.power':[800,1090],'pulse.rate':[665,1010],'pulse.range':[540,920],
+ 'pulse.economy':[670,1260],'pulse.special':[490,1140],'pulse.mastery':[350,1110],
+ 'ember.power':[2600,1090],'ember.rate':[2730,1010],'ember.range':[2880,920],
+ 'ember.economy':[2740,1260],'ember.special':[3010,1140],'ember.mastery':[3150,1110],
+ 'frost.power':[1080,1970],'frost.rate':[1010,2110],'frost.range':[940,2250],
+ 'frost.economy':[1310,2040],'frost.special':[1170,2220],'frost.mastery':[1120,2390],
+ 'arc.power':[2300,1970],'arc.rate':[2360,2110],'arc.range':[2450,2250],
+ 'arc.economy':[2080,2040],'arc.special':[2240,2220],'arc.mastery':[2210,2390],
+ 'rail.power':[1630,340],'rail.rate':[1520,240],'rail.range':[1410,135],
+ 'rail.economy':[1850,340],'rail.special':[1750,170],'rail.mastery':[1800,65]
+};
+let atlasPan=null,atlasSelected=null;
 function renderResearch(){
- const body=$('researchBody'), oldScroll=body.scrollTop, nav=$('researchNavigation'), oldNavScroll=nav.scrollLeft;
- nav.replaceChildren();
- const options=[['general','Общее','⬡'],...Object.entries(TOWERS).map(([key,ty])=>[key,ty.name,ty.icon])];
- for(const [key,title,symbol] of options){
-  const item=document.createElement('button');item.type='button';
-  const isLocked=key!=='general'&&!towerUnlocked(key);
-  item.className='research-tab'+(key===activeResearchTab?' is-current':'')+(isLocked?' is-unavailable':'');
-  item.setAttribute('role','tab');item.setAttribute('aria-selected',String(key===activeResearchTab));item.dataset.tab=key;
-  const count=key==='general'?RESEARCH.reduce((n,x)=>n+researchLevel(x.id),0):TOWER_RESEARCH[key].reduce((n,x)=>n+towerLevel(key,x.id),0);
-  item.innerHTML=`<span class="tab-symbol">${symbol}</span><span class="tab-copy"><b>${title}</b><small>${isLocked?'Не открыта':count+' ур.'}</small></span>${isLocked?'<span class="tab-lock" aria-hidden="true">⌑</span>':''}`;
-  item.addEventListener('click',()=>{activeResearchTab=key;renderResearch();body.scrollTop=0;item.focus({preventScroll:true});});nav.appendChild(item);
- }
- nav.scrollLeft=oldNavScroll;
- const selectedNav=nav.querySelector('.is-current');if(selectedNav){
-  const left=selectedNav.offsetLeft,right=left+selectedNav.offsetWidth;
-  if(left<nav.scrollLeft)nav.scrollLeft=left;
-  else if(right>nav.scrollLeft+nav.clientWidth)nav.scrollLeft=right-nav.clientWidth;
- }
- const container=$('researchTree');container.replaceChildren();
- const isGeneral=activeResearchTab==='general';
- container.className='research-tree'+(!isGeneral?' tower-research-tree':'');
- updateMeta();
- const nodes=currentResearch(), levels=nodes.reduce((n,x)=>n+nodeLevel(x),0),maxLevels=nodes.reduce((n,x)=>n+x.max,0);
- const progress=Math.round(levels/Math.max(1,maxLevels)*100);
- if(!isGeneral&&!towerUnlocked(activeResearchTab)){
-  const ty=TOWERS[activeResearchTab],el=document.createElement('section');el.className='research-unlock';
-  el.style.setProperty('--tower-color',ty.color);
-  el.innerHTML=`<div class="unlock-icon" aria-hidden="true">${ty.icon}</div><div class="unlock-description"><small>НЕИЗВЕСТНАЯ ТЕХНОЛОГИЯ / НОВАЯ БАШНЯ</small><h3>${ty.name}</h3><p>${ty.desc}. Разблокируй тип башни, чтобы строить её во время забега и исследовать собственную ветку модулей.</p><span class="unlock-index">06 исследований · постоянные улучшения</span></div>`;
-  const unlock=document.createElement('button');unlock.className='research-unlock-button';unlock.disabled=meta.shards<ty.unlockCost;
-  unlock.innerHTML=meta.shards<ty.unlockCost?`<span>Нужно ещё ${ty.unlockCost-meta.shards} ◆</span><strong>${ty.unlockCost} ◆</strong>`:`<span>Открыть башню</span><strong>${ty.unlockCost} ◆</strong>`;
-  unlock.addEventListener('click',()=>{if(towerUnlocked(activeResearchTab)||meta.shards<ty.unlockCost)return;meta.shards-=ty.unlockCost;meta.unlockedTowers.push(activeResearchTab);persist();sound(700,.15,'triangle');renderResearch();updateControls();});
-  el.append(unlock);container.append(el);
- } else {
-  const overview=document.createElement('div');overview.className='research-overview';
-  const accent=isGeneral?'#c5e887':TOWERS[activeResearchTab].color;
-  overview.style.setProperty('--tower-color',accent);
-  const name=isGeneral?'Система обороны':TOWERS[activeResearchTab].name;
-  const symbol=isGeneral?'⬡':TOWERS[activeResearchTab].icon;
-  const detail=isGeneral?'Развивай инфраструктуру, вооружение и экономику. Эти исследования влияют на все будущие забеги.':TOWERS[activeResearchTab].desc+'. Улучшения применяются ко всем построенным башням данного типа.';
-  overview.innerHTML=`<div class="overview-symbol" aria-hidden="true"><span>${symbol}</span></div><div class="overview-description"><span class="overview-eyebrow">${isGeneral?'ОБЩАЯ МОДЕРНИЗАЦИЯ':'ОБОРУДОВАНИЕ / БАШНЯ'}</span><h3>${name}</h3><p>${detail}</p></div><div class="overview-meter"><span>ИССЛЕДОВАНО</span><strong>${progress}<small>%</small></strong><div class="meter-track"><i style="width:${progress}%"></i></div><small>${levels} / ${maxLevels} уровней</small></div>`;
-  container.append(overview);
-  const branches=isGeneral?[['core','Ядро'],['weapons','Оружие'],['economy','Экономика']]:[['combat','Баллистика'],['systems','Оснастка']];
-  let branchIndex=0;
-  for(const [branch,label] of branches){
-   const items=nodes.filter(n=>n.branch===branch),col=document.createElement('section');col.className='research-branch';
-   const title=document.createElement('div');title.className='branch-header';
-   const earned=items.reduce((n,x)=>n+nodeLevel(x),0),total=items.reduce((n,x)=>n+x.max,0);
-   title.innerHTML=`<span class="branch-index">${String(++branchIndex).padStart(2,'0')}</span><div class="branch-heading"><small>ВЕТКА ИССЛЕДОВАНИЙ</small><strong>${label}</strong></div><span class="branch-completion">${earned}<span> / ${total}</span></span>`;
-   const list=document.createElement('div');list.className='branch-nodes';col.append(title,list);
-   for(const [i,node] of items.entries()){
-    const level=nodeLevel(node),locked=!researchRequirements(node),maxed=level>=node.max,cost=maxed?0:node.cost[level],enough=meta.shards>=cost;
-    const box=document.createElement('article');
-    box.className='research-node'+(locked?' is-locked':'')+(maxed?' is-maxed':'')+(!locked&&!maxed&&enough?' is-ready':'');
-    const top=document.createElement('div');top.className='research-node-top';
-    top.innerHTML=`<span class="research-symbol" aria-hidden="true">${node.symbol}</span><span class="research-node-heading"><small>МОДУЛЬ ${String(i+1).padStart(2,'0')}</small><strong class="research-node-name">${node.name}</strong></span><span class="research-level">${level}<span>/${node.max}</span></span>`;
-    const desc=document.createElement('div');desc.className='research-node-desc';desc.textContent=node.desc;
-    const pips=document.createElement('div');pips.className='research-pips';pips.setAttribute('aria-label',`Изучено уровней: ${level} из ${node.max}`);
-    for(let k=0;k<node.max;k++){const pip=document.createElement('i');if(k<level)pip.className='is-filled';pips.append(pip);}
-    const action=document.createElement('div');action.className='research-action';
-    const button=document.createElement('button');button.className='research-purchase';button.disabled=locked||maxed||!enough;
-    if(maxed){button.innerHTML='<span>Изучено полностью</span><strong>✓</strong>';}
-    else if(locked){
-     const requires=typeof node.requires==='string'?{id:node.requires,level:1}:node.requires;
-     const prerequisite=nodes.find(n=>n.id===requires?.id);
-     button.innerHTML=`<span>Требуется: ${prerequisite?.name||'предыдущий модуль'}</span><strong>⌑</strong>`;
-    }else if(!enough){button.innerHTML=`<span>Не хватает ${cost-meta.shards} осколков</span><strong>${cost} ◆</strong>`;}
-    else{button.innerHTML=`<span>Исследовать</span><strong>${cost} ◆ &nbsp; ↗</strong>`;}
-    button.addEventListener('click',()=>{const current=nodeLevel(node);if(current>=node.max||!researchRequirements(node)||meta.shards<node.cost[current])return;meta.shards-=node.cost[current];const id=isGeneral?node.id:`tower.${activeResearchTab}.${node.id}`;meta.research[id]=current+1;persist();sound(780,.11,'triangle');renderResearch();});
-    action.append(button);box.append(top,desc,pips,action);list.append(box);
-   }
-   container.append(col);
+ const body=$('researchBody'),tree=$('researchTree'),nav=$('researchNavigation');
+ tree.className='research-tree atlas-research';
+ nav.replaceChildren();updateMeta();
+ const group=ATLAS_GROUPS;
+ const nodes=[{id:'origin',scope:'general',x:1700,y:1100,symbol:'⬡',name:'Центральное ядро',origin:true,color:group.general.color}];
+ const edges=[];
+ const requirements=n=>typeof n.requires==='string'?{id:n.requires,level:1}:n.requires||null;
+ const levelOf=(scope,id)=>scope==='general'?researchLevel(id):towerLevel(scope,id);
+ const unlocked=scope=>scope==='general'||towerUnlocked(scope);
+ for(const [scope,part] of Object.entries(group)){
+  if(scope!=='general'){
+   nodes.push({id:scope+'.hub',scope,x:part.x,y:part.y,name:part.label,symbol:part.symbol,color:part.color,hub:true});
+   edges.push(['origin',scope+'.hub',scope]);
+  }
+  const list=scope==='general'?RESEARCH:TOWER_RESEARCH[scope];
+  for(const n of list){
+   const id=scope+'.'+n.id,p=ATLAS_POS[id],req=requirements(n);
+   if(!p)continue;
+   nodes.push({id,scope,x:p[0],y:p[1],name:n.name,symbol:n.symbol,desc:n.desc,color:part.color,
+    level:levelOf(scope,n.id),max:n.max,cost:n.cost,req,source:n});
+   edges.push([req?scope+'.'+req.id:scope==='general'?'origin':scope+'.hub',id,scope]);
   }
  }
- $('researchTotal').textContent=`${levels} / ${maxLevels} ур. · ${Object.keys(TOWERS).filter(towerUnlocked).length} из ${Object.keys(TOWERS).length} башен`;
- body.scrollTop=oldScroll;
+ const lookup=Object.fromEntries(nodes.map(n=>[n.id,n]));
+ const canBuy=n=>!n.hub&&!n.origin&&unlocked(n.scope)&&(!n.req||levelOf(n.scope,n.req.id)>=n.req.level)&&n.level<n.max&&meta.shards>=n.cost[n.level];
+ const scene=document.createElement('div');scene.className='atlas-scene';
+ const wiring=document.createElementNS('http://www.w3.org/2000/svg','svg');
+ wiring.setAttribute('viewBox','0 0 3500 2700');wiring.setAttribute('class','atlas-wiring');
+ for(const [aId,bId,scope] of edges){
+  const a=lookup[aId],b=lookup[bId];if(!a||!b)continue;
+  const link=document.createElementNS('http://www.w3.org/2000/svg','path');
+  const mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
+  link.setAttribute('d','M'+a.x+' '+a.y+' Q'+mx+' '+my+' '+b.x+' '+b.y);
+  link.setAttribute('stroke',group[scope].color);link.setAttribute('class','atlas-wire'+((b.level>0||b.hub&&unlocked(scope))?' is-active':''));
+  wiring.append(link);
+ }
+ scene.append(wiring);
+ const viewport=document.createElement('div');viewport.className='atlas-viewport';viewport.append(scene);
+ const control=document.createElement('div');control.className='atlas-toolbar';
+ control.innerHTML='<strong>КАРТА ИССЛЕДОВАНИЙ</strong><span class="atlas-tip">Перетаскивай · Масштабируй</span><div class="atlas-zoom"><button type="button" data-action="minus" aria-label="Уменьшить">−</button><span id="atlasPercent">80%</span><button type="button" data-action="plus" aria-label="Увеличить">+</button><button type="button" data-action="home" aria-label="Центр">⌖</button></div>';
+ const detail=document.createElement('aside');detail.className='atlas-detail';detail.hidden=true;
+ tree.replaceChildren(viewport,control,detail);
+ const bounds=()=>viewport.getBoundingClientRect();
+ function setCam(x,y,z){const b=bounds();atlasPan={x:b.width/2-x*z,y:b.height/2-y*z,z};updateCam();}
+ function updateCam(){if(!atlasPan)return;scene.style.transform='translate('+atlasPan.x+'px,'+atlasPan.y+'px) scale('+atlasPan.z+')';control.querySelector('#atlasPercent').textContent=Math.round(atlasPan.z*100)+'%';}
+ function zoom(cx,cy,mult){const old=atlasPan.z,nz=Math.min(1.6,Math.max(.35,old*mult));atlasPan.x=cx-(cx-atlasPan.x)/old*nz;atlasPan.y=cy-(cy-atlasPan.y)/old*nz;atlasPan.z=nz;updateCam();}
+ function jump(scope){activeResearchTab=scope;const p=group[scope];setCam(p.x,p.y,scope==='general'?.75:.9);
+  for(const b of nav.querySelectorAll('.atlas-tab')){b.classList.toggle('is-selected',b.dataset.scope===scope);}
+ }
+ function choose(node){
+  atlasSelected=node.id;detail.hidden=false;detail.replaceChildren();
+  scene.querySelectorAll('.atlas-node').forEach(x=>x.classList.toggle('is-selected',x.dataset.node===node.id));
+  const h=document.createElement('header');h.className='atlas-detail-head';
+  const title=document.createElement('div');
+  const kicker=document.createElement('small');kicker.textContent=node.origin?'СИСТЕМА':node.hub?'НОВАЯ БАШНЯ':'ПОСТОЯННОЕ ИССЛЕДОВАНИЕ';
+  const name=document.createElement('strong');name.textContent=node.name;title.append(kicker,name);
+  const close=document.createElement('button');close.type='button';close.textContent='×';close.setAttribute('aria-label','Закрыть');close.onclick=()=>{detail.hidden=true;atlasSelected=null;scene.querySelectorAll('.atlas-node').forEach(x=>x.classList.remove('is-selected'));};
+  h.append(title,close);detail.append(h);
+  const desc=document.createElement('p');desc.textContent=node.origin?'Здесь начинается общая сеть развития. Выбирай связанные технологии.':node.hub?TOWERS[node.scope].desc:node.desc;detail.append(desc);
+  if(node.origin)return;
+  if(node.hub){
+   if(unlocked(node.scope)){const tag=document.createElement('p');tag.className='atlas-owned';tag.textContent='Башня открыта';detail.append(tag);return;}
+   const btn=document.createElement('button');btn.type='button';btn.className='atlas-buy';btn.disabled=meta.shards<TOWERS[node.scope].unlockCost;btn.textContent='Открыть башню · '+TOWERS[node.scope].unlockCost+' ◆';
+   btn.onclick=()=>{const cost=TOWERS[node.scope].unlockCost;if(towerUnlocked(node.scope)||meta.shards<cost)return;meta.shards-=cost;meta.unlockedTowers.push(node.scope);persist();updateMeta();updateControls();sound(740,.12);renderResearch();};
+   detail.append(btn);return;
+  }
+  const status=document.createElement('div');status.className='atlas-detail-status';status.textContent='Уровень '+node.level+' / '+node.max;detail.append(status);
+  if(node.level>=node.max){const tag=document.createElement('p');tag.className='atlas-owned';tag.textContent='Исследование завершено';detail.append(tag);return;}
+  if(node.req&&levelOf(node.scope,node.req.id)<node.req.level){const tag=document.createElement('p');tag.className='atlas-locked';tag.textContent='Требуется «'+(lookup[node.scope+'.'+node.req.id]?.name||node.req.id)+'» · уровень '+node.req.level;detail.append(tag);}
+  const btn=document.createElement('button');btn.type='button';btn.className='atlas-buy';
+  btn.disabled=!canBuy(node);const price=node.cost[node.level];btn.textContent=(!unlocked(node.scope)?'Сначала открой башню':!canBuy(node)&&meta.shards<price?'Нужно ещё '+(price-meta.shards)+' ◆':'Исследовать · '+price+' ◆');
+  btn.onclick=()=>{if(!canBuy(node))return;const key=node.scope==='general'?node.source.id:'tower.'+node.scope+'.'+node.source.id;meta.shards-=node.cost[node.level];meta.research[key]=node.level+1;persist();updateMeta();sound(780,.1);renderResearch();};
+  detail.append(btn);
+ }
+ for(const n of nodes){
+  const b=document.createElement('button');b.type='button';b.dataset.node=n.id;b.className='atlas-node'+(n.hub?' hub':'')+(n.origin?' origin':'')+(n.level>0?' learned':'')+((n.level===undefined||n.level<n.max)&&canBuy(n)?' available':'')+(n.hub&&!unlocked(n.scope)?' locked':'');
+  b.style.left=n.x+'px';b.style.top=n.y+'px';b.style.setProperty('--node-color',n.color);
+  const glyph=document.createElement('span');glyph.className='atlas-glyph';glyph.textContent=n.symbol;b.append(glyph);
+  if(!n.origin){const caption=document.createElement('span');caption.className='atlas-caption';caption.textContent=n.name;b.append(caption);}
+  if(n.level!==undefined){const counter=document.createElement('span');counter.className='atlas-counter';counter.textContent=n.level+'/'+n.max;b.append(counter);}
+  b.onclick=e=>{e.stopPropagation();choose(n);};scene.append(b);
+ }
+ nav.className='research-navigation atlas-navigation';
+ for(const [scope,p] of Object.entries(group)){
+  const b=document.createElement('button');b.type='button';b.className='atlas-tab';b.dataset.scope=scope;
+  b.style.setProperty('--node-color',p.color);
+  const mark=document.createElement('span');mark.className='atlas-tab-glyph';mark.textContent=p.symbol;
+  const copy=document.createElement('span');copy.className='atlas-tab-text';
+  const title=document.createElement('b');title.textContent=p.label;
+  const sub=document.createElement('small');sub.textContent=scope==='general'?'Центр':unlocked(scope)?TOWER_RESEARCH[scope].reduce((a,n)=>a+towerLevel(scope,n.id),0)+' ур.':'Закрыта';
+  copy.append(title,sub);b.append(mark,copy);b.onclick=()=>jump(scope);nav.append(b);
+ }
+ const wheel=e=>{e.preventDefault();const r=bounds();zoom(e.clientX-r.left,e.clientY-r.top,e.deltaY<0?1.15:.87);};viewport.addEventListener('wheel',wheel,{passive:false});
+ let pressed=null;const fingers=new Map();let pinch=null;
+ viewport.addEventListener('pointerdown',e=>{if(e.button!==0||e.target.closest('.atlas-node'))return;viewport.setPointerCapture(e.pointerId);fingers.set(e.pointerId,{x:e.clientX,y:e.clientY});pressed={x:e.clientX,y:e.clientY,px:atlasPan.x,py:atlasPan.y};});
+ viewport.addEventListener('pointermove',e=>{
+  if(!fingers.has(e.pointerId))return;fingers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(fingers.size>=2){const ar=[...fingers.values()],d=Math.hypot(ar[0].x-ar[1].x,ar[0].y-ar[1].y);
+   if(pinch){const r=bounds();zoom((ar[0].x+ar[1].x)/2-r.left,(ar[0].y+ar[1].y)/2-r.top,d/pinch);}pinch=d;return;
+  }if(pressed){atlasPan.x=pressed.px+e.clientX-pressed.x;atlasPan.y=pressed.py+e.clientY-pressed.y;updateCam();}
+ });
+ const finish=e=>{fingers.delete(e.pointerId);pressed=null;pinch=null;};viewport.addEventListener('pointerup',finish);viewport.addEventListener('pointercancel',finish);
+ control.querySelector('[data-action="minus"]').onclick=()=>{const r=bounds();zoom(r.width/2,r.height/2,.8);};
+ control.querySelector('[data-action="plus"]').onclick=()=>{const r=bounds();zoom(r.width/2,r.height/2,1.25);};
+ control.querySelector('[data-action="home"]').onclick=()=>jump('general');
+ const sumLevels=nodes.filter(n=>n.level!==undefined).reduce((s,n)=>s+n.level,0);
+ const maxLevels=nodes.filter(n=>n.max).reduce((s,n)=>s+n.max,0);
+ $('researchTotal').textContent=sumLevels+'/'+maxLevels+' уровней · '+Object.keys(TOWERS).filter(towerUnlocked).length+'/'+Object.keys(TOWERS).length+' башен';
+ requestAnimationFrame(()=>{if(atlasPan){updateCam();}else jump(activeResearchTab);if(atlasSelected&&lookup[atlasSelected])choose(lookup[atlasSelected]);});
 }
 
 let lastShopMoney=-1;
