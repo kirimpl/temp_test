@@ -1,4 +1,4 @@
-/* COREBOUND — dependency-free browser prototype. No server, analytics or network calls. */
+/* VAYRHEX (working title) — dependency-free browser prototype. No server, analytics or network calls. */
 (() => {
 'use strict';
 const W = 960, H = 540, TAU = Math.PI * 2;
@@ -178,6 +178,8 @@ function drawVignette(){const g=ctx.createRadialGradient(W/2,H/2,100,W/2,H/2,580
  if(state.phase==='combat'){ctx.font='bold 11px system-ui';ctx.textAlign='left';ctx.fillStyle='#a2c8da';ctx.fillText(`HOSTILES // ${state.enemies.length} ACTIVE`,20,23);ctx.fillText(`INCOMING // ${Math.max(0,state.spawnTotal-state.spawnIndex)}`,20,40);}}
 function draw(){drawBackground();drawPads();drawCore();drawTowers();drawEnemies();drawFX();drawVignette();}
 function tick(now){const delta=Math.min(.045,(now-last)/1000);last=now;update(delta);draw();requestAnimationFrame(tick)}
+// Prevent the browser context menu during in-game long presses (Yandex Games requirement).
+canvas.addEventListener('contextmenu',ev=>ev.preventDefault());
 canvas.addEventListener('pointerdown',ev=>{if(state.phase!=='plan'&&state.phase!=='combat')return;const rect=canvas.getBoundingClientRect(),px=(ev.clientX-rect.left)/rect.width*W,py=(ev.clientY-rect.top)/rect.height*H;
  let best=-1,dmin=Number.POSITIVE_INFINITY;pads.forEach((p,i)=>{const d=Math.hypot(px-p[0],py-p[1]);if(d<dmin){dmin=d;best=i;}});if(dmin<53)selectPad(best);else{selectedPad=-1;pendingType=null;updateControls();}});
 $('playBtn').addEventListener('click',start);$('restartBtn').addEventListener('click',start);$('nextWaveBtn').addEventListener('click',startWave);
