@@ -36,40 +36,84 @@ function rr(x,y,w,h,r=6){ctx.beginPath();ctx.roundRect(x,y,w,h,r)}
 function rng(a,b){return Math.random()*(b-a)+a}
 const stars=Array.from({length:95},(_,i)=>({x:(i*193+53)%W,y:(i*127+79)%H,r:.4+(i%4)*.3,tw:i/12}));
 const particles=[];
-let state, selectedPad=-1, last=performance.now(), elapsed=0, toastTimeout=0, audioCtx=null, muted=true;
+let state, selectedPad=-1, pendingType=null, last=performance.now(), elapsed=0, toastTimeout=0, audioCtx=null, muted=true;
 const saved=()=>{try{return JSON.parse(localStorage.getItem('corebound-save-v1'))||{shards:0,coreLevel:0}}catch{return {shards:0,coreLevel:0}}};
 let meta=saved();
 meta.shards=Math.max(0,Number(meta.shards)||0);meta.coreLevel=Math.min(15,Math.max(0,Number(meta.coreLevel)||0));
 function persist(){try{localStorage.setItem('corebound-save-v1',JSON.stringify(meta))}catch{}}
 function newState(){return {phase:'menu',wave:0,hp:100+meta.coreLevel*12,maxHp:100+meta.coreLevel*12,money:135+Math.min(meta.coreLevel,5)*8,kills:0,frames:0,waveTime:0,spawnIndex:0,spawnTotal:0,spawnGap:1.0,spawnTimer:0,selectedModule:[],enemies:[],towers:[],bullets:[],fx:[],mods:{damage:1,range:1,rate:1,chain:0,burn:1,bounty:1},speed:1};}
-function init(){state=newState();selectedPad=-1;updateMeta();updateUI();updateControls();}
+function init(){state=newState();selectedPad=-1;pendingType=null;updateMeta();updateUI();updateControls();}
 function updateMeta(){$('shardCount').textContent=`${meta.shards} осколков`;$('metaBuy').textContent=`Усилить ядро · ${metaCost()}`;$('metaBuy').disabled=meta.shards<metaCost();}
 function metaCost(){return 20+meta.coreLevel*15}
 function toast(msg){const el=$('toast');el.textContent=msg;el.classList.add('show');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>el.classList.remove('show'),1700)}
 function sound(freq=430,dur=.06,type='sine',vol=.035){if(muted)return;try{audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();const osc=audioCtx.createOscillator(),gain=audioCtx.createGain();osc.type=type;osc.frequency.setValueAtTime(freq,audioCtx.currentTime);gain.gain.setValueAtTime(vol,audioCtx.currentTime);gain.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+dur);osc.connect(gain).connect(audioCtx.destination);osc.start();osc.stop(audioCtx.currentTime+dur)}catch{}}
 function updateUI(){
  $('hpText').textContent=`${Math.max(0,Math.ceil(state.hp))} / ${state.maxHp}`;$('hpBar').style.width=`${Math.max(0,state.hp/state.maxHp)*100}%`;
- $('waveText').textContent=`${state.wave} / ∞`;$('moneyText').textContent=`${Math.floor(state.money)} ◈`;$('killsText').textContent=state.kills;
- $('gameStatus').textContent={menu:'ПРОТОКОЛ НЕ АКТИВЕН',plan:'ПОДГОТОВКА ОБОРОНЫ',combat:'ОБОРОНА АКТИВНА',upgrade:'ВЫБОР МОДУЛЯ',dead:'СИГНАЛ ПОТЕРЯН'}[state.phase];
+ $('waveText').textContent=`${state.wave} / ∞`;$('moneyText').textContent=Math.floor(state.money);$('killsText').textContent=state.kills;
+ $('gameStatus').textContent={menu:'Ожидание',plan:'Подготовка',combat:'Волна идёт',upgrade:'Выбор модуля',dead:'Ядро потеряно'}[state.phase];
  $('speedBtn').textContent=`▶ ${state.speed}×`;
- $('dockState').textContent={menu:'ОЖИДАНИЕ',plan:'ГОТОВ',combat:'В БОЮ',upgrade:'МОДУЛЬ',dead:'ПОТЕРЯНО'}[state.phase];
- const btn=$('nextWaveBtn');btn.disabled=state.phase!=='plan';btn.innerHTML=state.phase==='combat'?'ИДЁТ ВОЛНА…':`ЗАПУСТИТЬ ВОЛНУ <span>↗</span>`;
+ $('dockState').textContent={menu:'Не начато',plan:'Можно запускать',combat:'Оборона',upgrade:'Улучшение',dead:'Поражение'}[state.phase];
+ const btn=$('nextWaveBtn');btn.disabled=state.phase!=='plan';btn.innerHTML=state.phase==='combat'?'Волна идёт…':'Запустить волну <span aria-hidden="true">→</span>';
 }
 function showModal(id,visible){$(id).classList.toggle('hidden',!visible)}
-function start(){state=newState();state.phase='plan';selectedPad=-1;['startModal','upgradeModal','deadModal'].forEach(id=>showModal(id,false));updateControls();updateUI();toast('Построй башни и запусти первую волну');}
+function start(){state=newState();state.phase='plan';selectedPad=-1;pendingType=null;['startModal','upgradeModal','deadModal'].forEach(id=>showModal(id,false));updateControls();updateUI();toast('Построй башни и запусти первую волну');}
 function startWave(){if(state.phase!=='plan')return;state.wave+=1;state.phase='combat';state.spawnTotal=5+Math.floor(state.wave*2.8)+(state.wave%5===0?1:0);state.spawnIndex=0;state.spawnTimer=.2;state.spawnGap=Math.max(.4,1.12-state.wave*.032);state.waveTime=0;toast(`ВОЛНА ${state.wave} — ВНИМАНИЕ`);sound(320,.22,'triangle');updateUI();}
 function enemyType(index){if(state.wave%5===0&&index===state.spawnTotal-1)return 'boss';if(state.wave>=3&&index%5===4)return 'tank';if(state.wave>=2&&index%4===2)return 'runner';return 'normal';}
 function spawnEnemy(index){const lane=(index*7+state.wave)%3,type=enemyType(index),isBoss=type==='boss';const maxHp=(isBoss?440:type==='tank'?130:type==='runner'?44:70)*Math.pow(1.135,state.wave-1);const speed=(isBoss?31:type==='tank'?35:type==='runner'?77:54)*Math.pow(1.014,state.wave-1);const p=getPoint(lane,0);state.enemies.push({id:Math.random(),lane,type,t:0,x:p.x,y:p.y,hp:maxHp,maxHp,spd:speed,slow:0,burn:0,burnDps:0,r:isBoss?24:type==='tank'?19:type==='runner'?11:14,reward:isBoss?110:type==='tank'?22:type==='runner'?14:12,impact:isBoss?32:type==='tank'?17:10,angle:0});}
-function selectPad(i){if(state.phase!=='plan'&&state.phase!=='combat')return;selectedPad=i;updateControls();sound(600,.035)}
+
+function selectPad(i){
+ if(state.phase!=='plan'&&state.phase!=='combat')return;
+ const existing=state.towers.find(t=>t.pad===i);
+ if(pendingType&&!existing){buildTower(pendingType,i);pendingType=null;selectedPad=i;}
+ else{selectedPad=i;pendingType=null;sound(600,.035)}
+ updateControls();
+}
 function costFor(tower){return 40+25*tower.level}
-function updateControls(){const root=$('buildControls');root.textContent='';const title=$('selectionTitle'),hint=$('selectionHint');const chosen=selectedPad<0?null:state.towers.find(t=>t.pad===selectedPad);
- function addTool(name,cost,icon,color,onClick,disabled=false){const b=document.createElement('button');b.className='toolbtn';b.disabled=disabled;b.innerHTML=`<div class="icon" style="color:${color}">${icon}</div><div><b>${name}</b><small>${cost}</small></div>`;b.addEventListener('click',onClick);root.appendChild(b);}
- if(selectedPad<0){title.textContent='Выберите площадку';hint.textContent='Нажмите на свободный узел на поле';return;}
- if(chosen){const ty=TOWERS[chosen.type];title.textContent=`${ty.name} · Ур. ${chosen.level}`;hint.textContent=`Урон ${Math.round(ty.dmg*(1+(chosen.level-1)*.52)*state.mods.damage)} · Радиус ${Math.round(ty.range*state.mods.range)}`;
- const cost=costFor(chosen);addTool('УЛУЧШИТЬ',`${cost} ◈`,'↑',ty.color,()=>{if(state.money<cost)return toast('Недостаточно кредитов');if(chosen.level>=6)return toast('Максимальный уровень');state.money-=cost;chosen.level++;burst(chosen.x,chosen.y,ty.color,18);sound(740,.15);updateControls();updateUI();},state.money<cost||chosen.level>=6);
- const refund=Math.round(ty.cost*.55+25*(chosen.level-1));addTool('ПРОДАТЬ',`+${refund} ◈`,'↶','#ec91ba',()=>{state.towers=state.towers.filter(t=>t!==chosen);state.money+=refund;burst(chosen.x,chosen.y,'#9ed6fa',12);updateControls();updateUI()});
- }else{title.textContent=`Узел ${String(selectedPad+1).padStart(2,'0')} · Свободен`;hint.textContent='Выберите тип защитной башни';
- for(const [key,ty] of Object.entries(TOWERS)){addTool(ty.name,`${ty.cost} ◈`,ty.icon,ty.color,()=>{if(state.money<ty.cost)return toast('Недостаточно кредитов');state.money-=ty.cost;const [x,y]=pads[selectedPad];state.towers.push({pad:selectedPad,x,y,type:key,level:1,cool:0,rotation:0});burst(x,y,ty.color,18);sound(560,.12,'triangle');updateControls();updateUI();},state.money<ty.cost)}
+function buildTower(key,pad){
+ const ty=TOWERS[key];
+ if(state.money<ty.cost){toast('Недостаточно кредитов');return false}
+ if(state.towers.some(t=>t.pad===pad)){toast('Площадка занята');return false}
+ state.money-=ty.cost;const [x,y]=pads[pad];
+ state.towers.push({pad,x,y,type:key,level:1,cool:0,rotation:0});
+ burst(x,y,ty.color,18);sound(560,.12,'triangle');updateUI();return true;
+}
+function updateControls(){
+ const root=$('buildControls');root.replaceChildren();
+ const title=$('selectionTitle'),hint=$('selectionHint');
+ const chosen=selectedPad<0?null:state.towers.find(t=>t.pad===selectedPad);
+ function action(name,cost,icon,color,callback,disabled=false){
+  const el=document.createElement('button');el.className='toolbtn';el.disabled=disabled;
+  el.innerHTML='<span class="icon" style="--tool-accent:'+color+'">'+icon+'</span><span class="toolcopy"><b>'+name+'</b><small>'+cost+'</small></span><span class="tool-arrow">›</span>';
+  el.addEventListener('click',callback);root.appendChild(el);
+ }
+ if(chosen){
+  const ty=TOWERS[chosen.type];title.textContent=ty.name+' · ур. '+chosen.level;
+  hint.textContent='Урон '+Math.round(ty.dmg*(1+(chosen.level-1)*.52)*state.mods.damage)+' · Радиус '+Math.round(ty.range*state.mods.range);
+  const cost=costFor(chosen);
+  action('Улучшить',cost+' ◆','↑',ty.color,()=>{
+   if(state.money<cost)return toast('Недостаточно кредитов');
+   if(chosen.level>=6)return toast('Максимальный уровень');
+   state.money-=cost;chosen.level++;burst(chosen.x,chosen.y,ty.color,18);sound(740,.15);updateControls();updateUI();
+  },state.money<cost||chosen.level>=6);
+  const refund=Math.round(ty.cost*.55+25*(chosen.level-1));
+  action('Продать','+'+refund+' ◆','↶','#ed9d9d',()=>{
+   state.towers=state.towers.filter(t=>t!==chosen);state.money+=refund;selectedPad=-1;
+   burst(chosen.x,chosen.y,'#9ed6fa',12);updateControls();updateUI();
+  });
+  action('Закрыть','Другая позиция','×','#96a6a1',()=>{selectedPad=-1;pendingType=null;updateControls()});
+  return;
+ }
+ if(pendingType){title.textContent=TOWERS[pendingType].name+' выбрана';hint.textContent='Коснись свободного узла, чтобы поставить башню';}
+ else if(selectedPad>=0){title.textContent='Узел '+String(selectedPad+1).padStart(2,'0')+' · свободен';hint.textContent='Выбери башню — она появится на этом узле';}
+ else{title.textContent='Выбери башню';hint.textContent='Затем коснись свободного узла на поле';}
+ for(const [key,ty] of Object.entries(TOWERS)){
+  const el=document.createElement('button');el.className='tower-card'+(pendingType===key?' is-armed':'');
+  el.disabled=state.money<ty.cost;el.setAttribute('aria-pressed',String(pendingType===key));
+  el.innerHTML='<span class="tower-glyph" style="--tower-accent:'+ty.color+'">'+ty.icon+'</span><span class="tower-detail"><b>'+ty.name+'</b><small>'+ty.desc+'</small></span><span class="tower-price">'+ty.cost+' ◆</span>';
+  el.addEventListener('click',()=>{
+   if(selectedPad>=0){if(buildTower(key,selectedPad)){pendingType=null;updateControls()}return}
+   pendingType=pendingType===key?null:key;updateControls();
+  });root.appendChild(el);
  }
 }
 function burst(x,y,color,n=8){for(let i=0;i<n;i++)state.fx.push({x,y,vx:rng(-100,100),vy:rng(-100,100),life:rng(.22,.65),max:.65,color,size:rng(1.5,4)})}
@@ -135,12 +179,12 @@ function drawVignette(){const g=ctx.createRadialGradient(W/2,H/2,100,W/2,H/2,580
 function draw(){drawBackground();drawPads();drawCore();drawTowers();drawEnemies();drawFX();drawVignette();}
 function tick(now){const delta=Math.min(.045,(now-last)/1000);last=now;update(delta);draw();requestAnimationFrame(tick)}
 canvas.addEventListener('pointerdown',ev=>{if(state.phase!=='plan'&&state.phase!=='combat')return;const rect=canvas.getBoundingClientRect(),px=(ev.clientX-rect.left)/rect.width*W,py=(ev.clientY-rect.top)/rect.height*H;
- let best=-1,dmin=Number.POSITIVE_INFINITY;pads.forEach((p,i)=>{const d=Math.hypot(px-p[0],py-p[1]);if(d<dmin){dmin=d;best=i;}});if(dmin<53)selectPad(best);else{selectedPad=-1;updateControls();}});
+ let best=-1,dmin=Number.POSITIVE_INFINITY;pads.forEach((p,i)=>{const d=Math.hypot(px-p[0],py-p[1]);if(d<dmin){dmin=d;best=i;}});if(dmin<53)selectPad(best);else{selectedPad=-1;pendingType=null;updateControls();}});
 $('playBtn').addEventListener('click',start);$('restartBtn').addEventListener('click',start);$('nextWaveBtn').addEventListener('click',startWave);
 $('speedBtn').addEventListener('click',()=>{state.speed=state.speed===1?2:1;updateUI();});
-$('muteBtn').addEventListener('click',()=>{muted=!muted;$('muteBtn').textContent=muted?'♪̸':'♪';if(!muted)sound(660,.1);});
+$('muteBtn').addEventListener('click',()=>{muted=!muted;$('muteBtn').textContent=muted?'♪̸':'♪';$('muteBtn').setAttribute('aria-label',muted?'Включить звук':'Выключить звук');if(!muted)sound(660,.1);});
 $('fullscreenBtn').addEventListener('click',async()=>{try{if(document.fullscreenElement){await document.exitFullscreen();}else{await document.querySelector('.gamebox').requestFullscreen();}}catch{toast('Полноэкранный режим недоступен — поверни телефон горизонтально');}});
-document.addEventListener('fullscreenchange',()=>{$('fullscreenBtn').innerHTML=document.fullscreenElement?'⊟ <span>EXIT</span>':'⤢ <span>FULLSCREEN</span>';});
+document.addEventListener('fullscreenchange',()=>{$('fullscreenBtn').setAttribute('aria-label',document.fullscreenElement?'Выйти из полного экрана':'Полноэкранный режим');});
 $('metaBuy').addEventListener('click',()=>{const cost=metaCost();if(meta.shards<cost)return;meta.shards-=cost;meta.coreLevel++;persist();state.maxHp=100+meta.coreLevel*12;state.hp=state.maxHp;updateMeta();updateUI();toast('Усиление ядра приобретено!');sound(740,.12);});
 window.addEventListener('keydown',ev=>{if(['Enter',' '].includes(ev.key)&&state.phase==='plan'&&ev.target.tagName!=='BUTTON'){ev.preventDefault();startWave();}if(ev.key==='Escape'){selectedPad=-1;updateControls();}});
 init();requestAnimationFrame(tick);
