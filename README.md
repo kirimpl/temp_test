@@ -30,7 +30,7 @@
 1. Cloudflare Dashboard → Workers & Pages → Create application → Pages → Connect to Git.
 2. Выберите GitHub-репозиторий `kirimpl/temp_test`.
 3. Укажите `main` в качестве production branch.
-4. Выберите Framework preset: **None**; Build command: **пусто**; Build output directory: `/` или `.` (корень репозитория, в зависимости от интерфейса Cloudflare).
+4. Выберите Framework preset: **None**; Build command: `exit 0`; Build output directory: `.` (корень репозитория).
 5. Нажмите Save and Deploy.
 
 После привязки изменения в `main` автоматически публикуются по постоянной ссылке Cloudflare Pages. Коммиты в `dev` могут давать отдельные preview deployments — при включённых preview builds.
