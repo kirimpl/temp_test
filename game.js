@@ -207,7 +207,9 @@ function renderResearch(){
  body.scrollTop=oldScroll;
 }
 
+let lastShopMoney=-1;
 function updateUI(){
+ if(lastShopMoney!==state.money&&state.phase!=='menu')updateControls();
  $('hpText').textContent=`${Math.max(0,Math.ceil(state.hp))} / ${state.maxHp}`;$('hpBar').style.width=`${Math.max(0,state.hp/state.maxHp)*100}%`;
  $('waveText').textContent=`${state.wave} / ∞`;$('moneyText').textContent=Math.floor(state.money);$('killsText').textContent=state.kills;
  $('gameStatus').textContent={menu:'Ожидание',plan:'Подготовка',combat:'Волна идёт',upgrade:'Выбор модуля',dead:'Ядро потеряно'}[state.phase];
@@ -241,6 +243,7 @@ function buildTower(key,pad){
  updateUI();return true;
 }
 function updateControls(){
+ lastShopMoney=state.money;
  const root=$('buildControls');root.replaceChildren();
  const title=$('selectionTitle'),hint=$('selectionHint');
  const chosen=selectedPad<0?null:state.towers.find(t=>t.pad===selectedPad);
@@ -258,7 +261,7 @@ function updateControls(){
    addAction('Улучшить',`${cost} ◆`,'↑',ty.color,()=>{
      if(state.money<cost)return toast('Недостаточно кредитов');
      if(chosen.level>=6)return toast('Максимальный уровень');
-     state.money-=cost;chosen.level++;burst(chosen.x,chosen.y,ty.color,18);sound(740,.15);updateControls();updateUI();
+     state.money-=cost;chosen.level++;chosen.cool=Math.min(chosen.cool,.1);burst(chosen.x,chosen.y,ty.color,18);sound(740,.15);updateControls();updateUI();
    },state.money<cost||chosen.level>=6);
    const refund=Math.round(towerStats(chosen.type).price*.55+25*(chosen.level-1));
    addAction('Продать',`+${refund} ◆`,'↶','#ed9d9d',()=>{
