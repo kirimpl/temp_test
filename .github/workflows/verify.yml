@@ -20,6 +20,7 @@ jobs:
           node --check game.js
           node --check atlas-v08.js
           node --check visual-v09.js
+          node --check visual-v10.js
       - name: Check static site files
         run: |
           test -s index.html
@@ -29,6 +30,15 @@ jobs:
           test -s atlas-v08.js
           test -s visual-v09.css
           test -s visual-v09.js
+          test -s visual-v10.js
+          test -s ui-v10.css
+          test -s assets/art/hero-scene.svg
+          test -s assets/art/tower-pulse.svg
+          test -s assets/art/tower-ember.svg
+          test -s assets/art/tower-frost.svg
+          test -s assets/art/tower-arc.svg
+          test -s assets/art/tower-rail.svg
+          test -s assets/ui/button-primary.png
           grep -q 'href="ui-v03.css"' index.html
           grep -q 'src="game.js"' index.html
           grep -q 'src="atlas-v08.js"' index.html
@@ -37,3 +47,13 @@ jobs:
 
           grep -q 'src="visual-v09.js"' index.html
           grep -q 'href="visual-v09.css"' index.html
+          grep -q 'href="ui-v10.css"' index.html
+          grep -q 'src="visual-v10.js"' index.html
+      - name: Validate SVG artwork
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from xml.etree import ElementTree
+          for file in Path('assets/art').glob('*.svg'):
+              ElementTree.parse(file)
+          PY
