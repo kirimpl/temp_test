@@ -98,3 +98,10 @@ body{background:radial-gradient(ellipse at 35% 5%,#29423a,#10191d 64%)!important
 }
 @media(max-width:360px){#startModal .menu-brand{font-size:50px!important}#startModal .menu-nav-button{font-size:11px!important;padding:7px!important}#startModal .menu-art{max-height:28vh!important}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* Named art binding: displayed tower order can vary as research unlocks types. */
+.tower-card[data-tower="pulse"] .tower-glyph{background-image:url('assets/art/tower-pulse.svg')!important}
+.tower-card[data-tower="ember"] .tower-glyph{background-image:url('assets/art/tower-ember.svg')!important}
+.tower-card[data-tower="frost"] .tower-glyph{background-image:url('assets/art/tower-frost.svg')!important}
+.tower-card[data-tower="arc"] .tower-glyph{background-image:url('assets/art/tower-arc.svg')!important}
+.tower-card[data-tower="rail"] .tower-glyph{background-image:url('assets/art/tower-rail.svg')!important}
