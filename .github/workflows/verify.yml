@@ -19,6 +19,7 @@ jobs:
         run: |
           node --check game.js
           node --check atlas-v08.js
+          node --check visual-v09.js
       - name: Check static site files
         run: |
           test -s index.html
@@ -26,8 +27,13 @@ jobs:
           test -s atlas-v08.css
           test -s game.js
           test -s atlas-v08.js
+          test -s visual-v09.css
+          test -s visual-v09.js
           grep -q 'href="ui-v03.css"' index.html
           grep -q 'src="game.js"' index.html
           grep -q 'src="atlas-v08.js"' index.html
           grep -q 'href="atlas-v08.css"' index.html
           grep -q 'id="atlasViewport"' index.html
+
+          grep -q 'src="visual-v09.js"' index.html
+          grep -q 'href="visual-v09.css"' index.html
