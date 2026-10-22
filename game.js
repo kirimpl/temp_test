@@ -415,7 +415,7 @@ function drawFX(){const cap=settings.shotLimit,alpha=settings.shotOpacity/100;
 
 function drawVignette(){const g=ctx.createRadialGradient(W/2,H/2,100,W/2,H/2,580);g.addColorStop(0,'#00000000');g.addColorStop(1,'#030714ad');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
  if(state.phase==='combat'){ctx.font='bold 11px system-ui';ctx.textAlign='left';ctx.fillStyle='#a2c8da';ctx.fillText(`HOSTILES // ${state.enemies.length} ACTIVE`,20,23);ctx.fillText(`INCOMING // ${Math.max(0,state.spawnTotal-state.spawnIndex)}`,20,40);}}
-function draw(){drawBackground();drawPads();drawCore();drawTowers();drawEnemies();drawFX();drawVignette();}
+function draw(){if(window.VayrhexArt?.draw){window.VayrhexArt.draw({ctx,W,H,state,elapsed,pads,paths,settings,selectedPad});return;}drawBackground();drawPads();drawCore();drawTowers();drawEnemies();drawFX();drawVignette();}
 function tick(now){const delta=Math.min(.045,(now-last)/1000);last=now;update(delta);scheduleMusic();draw();requestAnimationFrame(tick)}
 canvas.addEventListener('contextmenu',ev=>ev.preventDefault());
 canvas.addEventListener('pointerdown',ev=>{if(state.phase!=='plan'&&state.phase!=='combat')return;const rect=canvas.getBoundingClientRect(),px=(ev.clientX-rect.left)/rect.width*W,py=(ev.clientY-rect.top)/rect.height*H;
