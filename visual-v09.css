@@ -28,3 +28,16 @@ button,input{font-family:var(--vx-display)!important}button{transition:backgroun
 @media(max-width:760px){.app{padding:5px!important}.wordmark{font-size:19px!important}.hud-cell{min-height:54px!important;padding:7px 8px!important}.hud-cell .hud-label{font-size:8px!important}.hud-cell strong{font-size:15px!important}.sidepanel{border:0!important}.side-top{padding:10px!important}#startModal .menu-pane{width:min(430px,calc(100vw - 20px))!important;min-height:0!important;padding:112px 20px 20px!important;background:linear-gradient(160deg,#0b1e20,#1b322c)!important;align-items:stretch!important;box-shadow:9px 12px 0 #0009!important}#startModal .menu-pane:before{top:15px;left:18px;font-size:8px}#startModal .menu-pane:after{top:28%;font-size:140px;opacity:.45}#startModal .emblem--hero{top:59px!important;right:57px!important;transform:scale(1.5)!important}#startModal .menu-brand{font-size:clamp(40px,12vw,62px)!important;margin:12px 0 18px!important}#startModal .menu-description{font-size:12px!important;margin:0 0 20px!important}.menu-nav-button{min-height:45px!important;font-size:11px!important}#startModal #playBtn{min-height:54px!important}#researchModal .atlas-inspector h3{font-size:17px!important}}
 @media(max-width:380px){.menu-nav{flex-direction:column!important}.menu-nav-button{min-height:41px!important}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* Controlled motion: one orchestrated reveal instead of perpetual UI glitter. */
+@keyframes vx-reveal{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes vx-burn{0%,100%{opacity:.58}50%{opacity:.95}}
+@media(prefers-reduced-motion:no-preference){
+ #startModal:not(.hidden) .menu-brand{animation:vx-reveal .65s cubic-bezier(.2,.75,.25,1) both}
+ #startModal:not(.hidden) .menu-description{animation:vx-reveal .62s .10s both}
+ #startModal:not(.hidden) .menu-actions{animation:vx-reveal .62s .18s both}
+ #startModal:not(.hidden) .meta-bar{animation:vx-reveal .62s .27s both}
+ #researchModal .atlas-node.state-ready .atlas-node-face{animation:vx-burn 3.8s ease-in-out infinite}
+ .tower-card:hover:not(:disabled) .tower-glyph{transform:rotate(-5deg)}
+}
+@media(prefers-reduced-motion:reduce){#startModal *,#researchModal *{animation:none!important}}
