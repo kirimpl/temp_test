@@ -278,7 +278,7 @@ function updateControls(){
  for(const [key,ty] of Object.entries(TOWERS).filter(([key])=>towerUnlocked(key))){
    const b=document.createElement('button');
    const price=towerStats(key).price;
-   b.className='tower-card'+(pendingType===key?' is-armed':'');b.disabled=state.money<price;
+   b.className='tower-card'+(pendingType===key?' is-armed':'');b.dataset.tower=key;b.disabled=state.money<price;
    b.setAttribute('aria-pressed',String(pendingType===key));
    b.innerHTML=`<span class="tower-glyph" style="--tower-accent:${ty.color}">${ty.icon}</span><span class="tower-detail"><b>${ty.name}</b><small>${ty.desc}</small></span><span class="tower-price">${price} ◆</span>`;
    b.addEventListener('click',()=>{
